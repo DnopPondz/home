@@ -62,7 +62,7 @@ const Navbar = () => {
       <div className="p-5 sm:px-28 lg:px-36 flex justify-between items-center">
         <div className="flex justify-center items-center gap-5">
             <Link href="/">
-             <Image src="/navbar-img/logo.PNG" alt="HomeServices Logo" width={127} height={25} />
+             <Image src="/navbar-img/logo.jpg" alt="HomeServices Logo" width={127} height={25} />
             </Link>
          
           <Link href="/"><p className="text-sm">บริการของเรา</p></Link>
