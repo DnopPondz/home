@@ -24,3 +24,11 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 } */
+body {
+  overflow-x: hidden;  /* ได้แค่แนวนอน */
+  overflow-y: auto;
+}
+
+* {
+  font-family: var(--font-prompt), sans-serif;
+}

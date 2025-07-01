@@ -5,7 +5,7 @@ export default function Home() {
   return (
     <div className="w-full">
      
-      <h1 className="text-5xl">Hi</h1>
+      <h1 className="text-5xl text-center">Home Service</h1>
     </div>
   );
 }
