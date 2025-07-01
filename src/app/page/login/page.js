@@ -10,25 +10,50 @@ const LoginPage = () => {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (email.trim() === "" || password.trim() === "") {
       alert("กรุณากรอกอีเมลและรหัสผ่าน");
       return;
     }
 
-    // สร้าง mock user
-    const mockUser = {
-      name: "คุณ วิภาวรรณ์สง",
-      avatar: "/navbar-img/user1.jpg",
-      email,
-    };
+    setLoading(true);
 
-    // เรียก login ใน context
-    login(mockUser);
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    // ไปหน้า homepage
-    router.push("/");
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.message || "เข้าสู่ระบบไม่สำเร็จ");
+        setLoading(false);
+        return;
+      }
+
+      // login สำเร็จ → ส่งข้อมูลให้ AuthContext
+      login({
+        userId: data.user.userId,
+        name: `${data.user.firstName} ${data.user.lastName}`,
+        email: data.user.email,
+        avatar: data.user.imageUrl,
+        phone: data.user.phone,
+        location: data.user.location,
+      });
+
+      router.push("/");
+    } catch (error) {
+      console.error("Login Error:", error);
+      alert("เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -86,10 +111,13 @@ const LoginPage = () => {
         <div className="w-full max-w-96 mx-auto mb-8">
           <button
             onClick={handleLogin}
-            className="w-full px-6 py-2.5 bg-blue-600 rounded-lg inline-flex justify-center items-center gap-2 hover:bg-blue-700 transition-colors"
+            className={`w-full px-6 py-2.5 rounded-lg inline-flex justify-center items-center gap-2 transition-colors ${
+              loading ? "bg-blue-300" : "bg-blue-600 hover:bg-blue-700"
+            }`}
+            disabled={loading}
           >
             <div className="text-center justify-center text-white text-base font-medium font-['Prompt'] leading-normal">
-              เข้าสู่ระบบ
+              {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
             </div>
           </button>
         </div>

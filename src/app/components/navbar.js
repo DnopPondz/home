@@ -9,7 +9,6 @@ const Navbar = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  // ตัวอย่าง notifications เหมือนเดิม
   const notifications = [
     { id: 1, message: "คำขอบริการของคุณได้รับการอนุมัติแล้ว", time: "2 ชั่วโมงที่แล้ว", isRead: false },
     { id: 2, message: "มีช่างเทคนิคกำลังเดินทางไปยังสถานที่ของคุณ", time: "5 ชั่วโมงที่แล้ว", isRead: false },
@@ -48,7 +47,9 @@ const Navbar = () => {
             </Link>
           ) : (
             <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-700 max-sm:hidden">{user.name}</span>
+              <span className="text-sm text-gray-700 max-sm:hidden">
+                {user.name || `${user.firstName} ${user.lastName}`}
+              </span>
 
               <div className="relative">
                 <button
@@ -78,8 +79,10 @@ const Navbar = () => {
                           />
                         </div>
                         <div>
-                          <p className="font-medium text-sm text-gray-800">{user.name}</p>
-                          <p className="text-xs text-gray-500">ผู้ใช้งาน</p>
+                          <p className="font-medium text-sm text-gray-800">
+                            {user.name || `${user.firstName} ${user.lastName}`}
+                          </p>
+                          <p className="text-xs text-gray-500">{user.email}</p>
                         </div>
                       </div>
                     </div>
