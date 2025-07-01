@@ -39,7 +39,7 @@ export default function RootLayout({ children }) {
           <div className="font-prompt sticky top-0 z-50">
             <Navbar />
           </div>
-          <div className="p-2">
+          <div className="">
             {children}
           </div>
         </AuthProvider>
