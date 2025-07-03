@@ -83,7 +83,7 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm animate-fade-in"
+        className="fixed inset-0 bg-opacity-20 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
       

@@ -4,6 +4,7 @@ import Navbar from "./components/navbar";
 import FooterPage from "./components/footer/footer-login";
 import { AuthProvider } from "./context/AuthContext";
 import Head from "next/head";
+import NavigationSwitcher from "./components/NavigationSwitcher";
 
 // โหลดฟอนต์
 const geistSans = Geist({
@@ -40,12 +41,12 @@ export default function RootLayout({ children }) {
     <html lang="th" className={prompt.variable}>
       <body className="font-sans">
         <AuthProvider>
-          <div className="font-prompt sticky top-0 z-50">
-            <Navbar />
-          </div>
-          <div className="">
+         <AuthProvider>
+          <NavigationSwitcher />
+          <main className="">
             {children}
-          </div>
+          </main>
+        </AuthProvider>
         </AuthProvider>
       </body>
     </html>
