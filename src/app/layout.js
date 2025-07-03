@@ -30,6 +30,9 @@ const prompt = Prompt({
 export const metadata = {
   title: "Home Service",
   description: "Service for you house",
+  icons: {
+    icon: '/icon.png', sizes: '32x32'
+  },
 };
 
 export default function RootLayout({ children }) {
