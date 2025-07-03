@@ -25,7 +25,7 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 } */
 body {
-  overflow-x: hidden;  /* ได้แค่แนวนอน */
+  overflow-x: hidden;  
   overflow-y: auto;
 }
 
