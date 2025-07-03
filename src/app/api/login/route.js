@@ -26,7 +26,18 @@ export async function POST(req) {
       return new Response(JSON.stringify({ message: "Invalid email or password" }), { status: 401 })
     }
 
-    // ส่งข้อมูลผู้ใช้บางส่วนกลับไป (ไม่รวม password)
+    // กำหนด role: ถ้า user มี role อยู่แล้วใช้ role นั้น, ถ้าไม่มีและเป็น admin@sv.com ก็ให้เป็น admin
+    let role = "user"
+    if (user.role) {
+      role = user.role
+    } else if (user.email === "admin@sv.com") {
+      role = "admin"
+    }
+
+    // กำหนดหน้า redirect ตาม role
+    const redirectTo = role === "admin" ? "/page/admin/dashboard" : "/"
+
+    // ส่งข้อมูล user บางส่วน (ไม่รวม password) และ role กับ redirectTo กลับไปด้วย
     const { _id, firstName, lastName, imageUrl, phone, location } = user
 
     return new Response(
@@ -40,7 +51,9 @@ export async function POST(req) {
           phone,
           location,
           imageUrl,
+          role,         // เพิ่ม role เพื่อให้ frontend ใช้งานได้
         },
+        redirectTo,      // เพิ่ม redirectTo ให้ frontend
       }),
       { status: 200 }
     )
