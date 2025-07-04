@@ -4,6 +4,51 @@ import { useRouter } from "next/navigation";
 import { AuthContext } from "@/app/context/AuthContext";
 import Link from "next/link";
 
+// Loading Spinner Component
+const LoadingSpinner = () => (
+  <div className="fixed inset-0  backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white p-8 rounded-lg shadow-lg flex flex-col items-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+      <p className="text-gray-700 font-['Prompt'] text-lg">กำลังเข้าสู่ระบบ...</p>
+    </div>
+  </div>
+);
+
+// Success/Error Icon Component
+const StatusIcon = ({ type }) => {
+  if (type === 'success') {
+    return (
+      <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-8 rounded-lg shadow-lg flex flex-col items-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+          <p className="text-green-700 font-['Prompt'] text-lg">เข้าสู่ระบบสำเร็จ!</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (type === 'error') {
+    return (
+      <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-8 rounded-lg shadow-lg flex flex-col items-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </div>
+          <p className="text-red-700 font-['Prompt'] text-lg">เข้าสู่ระบบไม่สำเร็จ!</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return null;
+};
+
 const LoginPage = () => {
   const { login } = useContext(AuthContext);
   const router = useRouter();
@@ -11,10 +56,15 @@ const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [statusIcon, setStatusIcon] = useState(null);
 
   const handleLogin = async () => {
+    // Clear previous error
+    setErrorMessage("");
+    
     if (email.trim() === "" || password.trim() === "") {
-      alert("กรุณากรอกอีเมลและรหัสผ่าน");
+      setErrorMessage("กรุณากรอกอีเมลและรหัสผ่านให้ครบถ้วน");
       return;
     }
 
@@ -30,27 +80,45 @@ const LoginPage = () => {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.message || "เข้าสู่ระบบไม่สำเร็จ");
         setLoading(false);
+        setErrorMessage("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+        
+        // Show error icon for 1 second
+        setStatusIcon('error');
+        setTimeout(() => setStatusIcon(null), 1000);
         return;
       }
 
+      // Show success icon
+      setStatusIcon('success');
+      
+      // แก้ไขการส่งข้อมูลให้ส่งครบทุก field
       login({
         userId: data.user.userId,
-        name: `${data.user.firstName} ${data.user.lastName}`,
+        firstName: data.user.firstName,    // ← เพิ่มบรรทัดนี้
+        lastName: data.user.lastName,     // ← เพิ่มบรรทัดนี้
+        name: `${data.user.firstName || ""} ${data.user.lastName || ""}`.trim(), // ← ปรับให้ handle กรณี null/undefined
         email: data.user.email,
         avatar: data.user.imageUrl,
+        imageUrl: data.user.imageUrl,     // ← เพิ่มบรรทัดนี้ (สำหรับ UserData component)
         phone: data.user.phone,
         location: data.user.location,
         role: data.user.role,
       });
 
-      router.push(data.redirectTo || "/");
+      // Wait 1.5 seconds to show success icon then redirect
+      setTimeout(() => {
+        router.push(data.redirectTo || "/");
+      }, 1500);
+
     } catch (error) {
       console.error("Login Error:", error);
-      alert("เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
-    } finally {
       setLoading(false);
+      setErrorMessage("เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง");
+      
+      // Show error icon for 1 second
+      setStatusIcon('error');
+      setTimeout(() => setStatusIcon(null), 1000);
     }
   };
 
@@ -116,6 +184,15 @@ const LoginPage = () => {
             </div>
           </div>
 
+          {/* Error Message */}
+          {errorMessage && (
+            <div className="w-full max-w-96 mx-auto mb-4">
+              <p className="text-red-600 text-sm font-normal font-['Prompt'] leading-normal">
+                {errorMessage}
+              </p>
+            </div>
+          )}
+
           {/* ปุ่ม Login */}
           <div className="w-full max-w-96 mx-auto mb-8">
             <button
@@ -146,6 +223,12 @@ const LoginPage = () => {
           </div>
         </form>
       </div>
+
+      {/* Loading Spinner */}
+      {loading && <LoadingSpinner />}
+      
+      {/* Status Icons */}
+      {statusIcon && <StatusIcon type={statusIcon} />}
     </div>
   );
 };
