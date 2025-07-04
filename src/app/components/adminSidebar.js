@@ -1,125 +1,120 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-import Navbar from './navbar';
-import { Home, Users, Tag, Shield, Settings, BarChart3, Bell } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useContext, useState } from 'react';
+import { AuthContext } from '../context/AuthContext';
+import { Home, Users, Tag, Shield, Settings, BarChart3, Bell, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import Image from 'next/image';
 
 const AdminSidebar = () => {
+    const { user, logout } = useContext(AuthContext);
+    const pathname = usePathname();
+
+    const [collapsed, setCollapsed] = useState(false); // toggle sidebar
+
     const menuItems = [
-        { icon: Shield, label: 'ADMIN', active: false },
-        { icon: Users, label: 'USERS', active: false },
-        { icon: Tag, label: 'Promotion Code', active: true },
-        { icon: BarChart3, label: 'Analytics', active: false },
-        { icon: Settings, label: 'Settings', active: false }
+        { icon: Shield, label: 'ADMIN', href: '/page/admin/dashboard' },
+        { icon: Users, label: 'USERS', href: '/page/admin/manage' },
+        { icon: Tag, label: 'Serivce', href: '/page/admin/service' },
+        { icon: BarChart3, label: 'History', href: '/page/admin/history' },
+        { icon: Settings, label: 'Setting Service', href: '/page/admin/setting' }
     ];
 
+ const handleLogout = async () => {
+  try {
+    const res = await fetch("/api/logout", { method: "POST" });
+    const data = await res.json();
+    if (res.ok) {
+      logout(); // ล้าง context
+      window.location.replace(data.redirectTo); // replace แทน href
+    } else {
+      console.error(data.message);
+    }
+  } catch (err) {
+    console.error("Logout failed:", err);
+  }
+};
+
     return (
-        <div className="w-64 bg-gradient-to-b from-blue-900 to-blue-800 h-full text-white shadow-xl flex flex-col">
+        <div className={`bg-gradient-to-b from-blue-900 to-blue-800 h-full text-white shadow-xl flex flex-col transition-all duration-300 ${collapsed ? 'w-20' : 'w-64'}`}>
             {/* Header */}
-            <div className="p-6 border-b border-blue-700 flex-shrink-0">
+            <div className="p-4 border-b border-blue-700 flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg">
                         <Home className="w-6 h-6 text-white" />
                     </div>
-                    <div>
-                        <h1 className="text-lg font-bold">HomeServices</h1>
-                        <p className="text-xs text-blue-300">Admin Panel</p>
-                    </div>
+                    {!collapsed && (
+                        <div>
+                            <h1 className="text-lg font-bold">HomeServices</h1>
+                            <p className="text-xs text-blue-300">Admin Panel</p>
+                        </div>
+                    )}
                 </div>
+                {/* Toggle Button */}
+                <button
+                    onClick={() => setCollapsed(!collapsed)}
+                    className="text-blue-300 hover:text-white transition"
+                >
+                    {collapsed ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
+                </button>
             </div>
 
             {/* Navigation Menu */}
-            <nav className="flex-1 mt-6 px-3">
-                <div className="space-y-1">
-                    {menuItems.map((item, index) => {
-                        const Icon = item.icon;
-                        return (
-                            <div key={index} className="group">
-                                <div className={`
-                                    flex items-center space-x-3 px-3 py-3 rounded-lg cursor-pointer transition-all duration-200
-                                    ${item.active 
-                                        ? 'bg-blue-700 text-white shadow-lg' 
-                                        : 'text-blue-200 hover:text-white hover:bg-blue-700/50'
-                                    }
-                                `}>
-                                    <Icon className="w-5 h-5" />
-                                    <span className="font-medium">{item.label}</span>
-                                </div>
+            <nav className="flex-1 mt-6 px-2 space-y-1">
+                {menuItems.map((item, index) => {
+                    const Icon = item.icon;
+                    const isActive = pathname === item.href;
+                    return (
+                        <Link href={item.href} key={index}>
+                            <div
+                                className={`
+                                    flex items-center px-3 py-3 rounded-lg cursor-pointer transition-all duration-200
+                                    ${isActive ? 'bg-blue-700 text-white shadow-lg' : 'text-blue-200 hover:text-white hover:bg-blue-700/50'}
+                                `}
+                            >
+                                <Icon className="w-5 h-5" />
+                                {!collapsed && <span className="ml-3 font-medium">{item.label}</span>}
                             </div>
-                        );
-                    })}
-                </div>
-
-                {/* Stats Section */}
-                <div className="mt-8">
-                    <div className="bg-blue-800/50 rounded-lg p-4 border border-blue-700">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-blue-200">Today's Stats</span>
-                            <Bell className="w-4 h-4 text-blue-300" />
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex justify-between">
-                                <span className="text-xs text-blue-300">New Users</span>
-                                <span className="text-xs font-semibold text-white">24</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-xs text-blue-300">Active Services</span>
-                                <span className="text-xs font-semibold text-white">156</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                        </Link>
+                    );
+                })}
             </nav>
 
-            {/* Bottom section */}
-            <div className="p-4 border-t border-blue-700 bg-blue-900/50 flex-shrink-0">
+            {/* Bottom User Info */}
+            <div className="p-4 border-t border-blue-700 bg-blue-900/50 flex flex-col space-y-2">
                 <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center shadow-lg">
-                        <span className="text-sm font-bold text-white">A</span>
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
+                        <Image
+                            src={user?.avatar || '/navbar-img/user1.jpg'}
+                            alt="User Avatar"
+                            width={40}
+                            height={40}
+                            className="w-full h-full object-cover rounded-full"
+                        />
                     </div>
-                    <div className="flex-1">
-                        <div className="text-sm font-medium text-white">Admin User</div>
-                        <div className="text-xs text-blue-300">Administrator</div>
-                    </div>
+                    {!collapsed && (
+                        <div className="flex-1">
+                            <div className="text-sm font-medium text-white">
+                                {user?.name || `${user?.firstName} ${user?.lastName}`}
+                            </div>
+                            <div className="text-xs text-blue-300">{user?.email}</div>
+                        </div>
+                    )}
                     <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                 </div>
+
+                {!collapsed && (
+                    <button
+                        onClick={handleLogout}
+                        className="w-full text-left text-sm text-red-300 hover:text-red-500 transition-colors cursor-pointer"
+                    >
+                        ออกจากระบบ
+                    </button>
+                )}
             </div>
         </div>
     );
 };
 
-export default function NavigationSwitcher({ children }) {
-  const pathname = usePathname();
-  const isAdminPage = pathname.startsWith('/page/admin');
-
-  if (isAdminPage) {
-    return (
-      <div className="h-screen flex bg-gray-50">
-        {/* Sidebar - Fixed width */}
-        <AdminSidebar />
-        
-        {/* Main content area - Takes remaining space */}
-        <div className="">
-          {/* Content - Scrollable */}
-          <main className="">
-            <div className="">
-              {children}
-            </div>
-          </main>
-        </div>
-      </div>
-    );
-  }
-
-  // แสดง Navbar ปกติสำหรับหน้าอื่นๆ
-  return (
-    <div className="">
-      <div className="">
-        <Navbar />
-      </div>
-      <main className="">
-        {children}
-      </main>
-    </div>
-  );
-}
+export default AdminSidebar;

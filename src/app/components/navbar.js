@@ -25,6 +25,21 @@ const Navbar = () => {
     setShowNotifications(false);
   };
 
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("/api/logout", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        logout(); // ล้าง context
+        window.location.href = data.redirectTo; // redirect หน้า login
+      } else {
+        console.error(data.message);
+      }
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+  };
+
   return (
     <div className="w-full h-[65px] shadow-blue-50 shadow-xl relative bg-white ">
       <div className="p-5 sm:px-28 lg:px-36 flex justify-between items-center">
@@ -101,8 +116,8 @@ const Navbar = () => {
                       <button
                         className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                         onClick={() => {
-                          logout();
                           setShowUserMenu(false);
+                          handleLogout(); // เรียก API Logout
                         }}
                       >
                         ออกจากระบบ
