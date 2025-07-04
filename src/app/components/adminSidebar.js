@@ -16,9 +16,9 @@ const AdminSidebar = () => {
     const menuItems = [
         { icon: Shield, label: 'ADMIN', href: '/page/admin/dashboard' },
         { icon: Users, label: 'USERS', href: '/page/admin/manage' },
-        { icon: Tag, label: 'Promotion Code', href: '/page/admin/promotion' },
-        { icon: BarChart3, label: 'Analytics', href: '/page/admin/analytics' },
-        { icon: Settings, label: 'Settings', href: '/page/admin/settings' }
+        { icon: Tag, label: 'Serivce', href: '/page/admin/service' },
+        { icon: BarChart3, label: 'History', href: '/page/admin/history' },
+        { icon: Settings, label: 'Setting Service', href: '/page/admin/setting' }
     ];
 
  const handleLogout = async () => {

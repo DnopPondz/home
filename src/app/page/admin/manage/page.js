@@ -17,33 +17,63 @@ const Notification = ({ message, type, isVisible, onClose }) => {
 
   const getTypeStyles = () => {
     switch (type) {
-      case 'success':
-        return 'bg-green-50 border-green-200 text-green-800';
-      case 'error':
-        return 'bg-red-50 border-red-200 text-red-800';
+      case "success":
+        return "bg-green-50 border-green-200 text-green-800";
+      case "error":
+        return "bg-red-50 border-red-200 text-red-800";
       default:
-        return 'bg-blue-50 border-blue-200 text-blue-800';
+        return "bg-blue-50 border-blue-200 text-blue-800";
     }
   };
 
   const getIcon = () => {
     switch (type) {
-      case 'success':
+      case "success":
         return (
-          <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+          <svg
+            className="w-5 h-5 text-green-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M5 13l4 4L19 7"
+            />
           </svg>
         );
-      case 'error':
+      case "error":
         return (
-          <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+          <svg
+            className="w-5 h-5 text-red-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         );
       default:
         return (
-          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="w-5 h-5 text-blue-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
         );
     }
@@ -51,11 +81,11 @@ const Notification = ({ message, type, isVisible, onClose }) => {
 
   return (
     <div className="fixed top-4 right-4 left-4 sm:left-auto z-50 animate-slide-in">
-      <div className={`max-w-md w-full border rounded-lg shadow-lg p-4 ${getTypeStyles()}`}>
+      <div
+        className={`max-w-md w-full border rounded-lg shadow-lg p-4 ${getTypeStyles()}`}
+      >
         <div className="flex items-center">
-          <div className="flex-shrink-0">
-            {getIcon()}
-          </div>
+          <div className="flex-shrink-0">{getIcon()}</div>
           <div className="ml-3 flex-1">
             <p className="text-sm font-medium">{message}</p>
           </div>
@@ -64,8 +94,18 @@ const Notification = ({ message, type, isVisible, onClose }) => {
               onClick={onClose}
               className="inline-flex text-gray-400 hover:text-gray-600 focus:outline-none"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -81,23 +121,33 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div 
+      <div
         className="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
-      
+
       <div className="relative bg-white rounded-lg shadow-xl p-6 max-w-md w-full animate-scale-in">
         <div className="flex items-center mb-4">
           <div className="flex-shrink-0">
-            <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
+            <svg
+              className="w-6 h-6 text-red-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z"
+              />
             </svg>
           </div>
           <h3 className="ml-3 text-lg font-medium text-gray-900">{title}</h3>
         </div>
-        
+
         <p className="text-sm text-gray-600 mb-6">{message}</p>
-        
+
         <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
           <button
             onClick={onClose}
@@ -120,33 +170,33 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message }) => {
 // Add User Modal Component
 const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    phone: '',
-    location: '',
-    image: null
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    phone: "",
+    location: "",
+    image: null,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        image: file
+        image: file,
       }));
-      
+
       // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -162,18 +212,18 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
 
     try {
       const submitData = new FormData();
-      submitData.append('firstName', formData.firstName);
-      submitData.append('lastName', formData.lastName);
-      submitData.append('email', formData.email);
-      submitData.append('password', formData.password);
-      submitData.append('phone', formData.phone);
-      submitData.append('location', formData.location);
+      submitData.append("firstName", formData.firstName);
+      submitData.append("lastName", formData.lastName);
+      submitData.append("email", formData.email);
+      submitData.append("password", formData.password);
+      submitData.append("phone", formData.phone);
+      submitData.append("location", formData.location);
       if (formData.image) {
-        submitData.append('image', formData.image);
+        submitData.append("image", formData.image);
       }
 
-      const response = await fetch('/api/register', {
-        method: 'POST',
+      const response = await fetch("/api/register", {
+        method: "POST",
         body: submitData,
       });
 
@@ -182,22 +232,22 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
         onClose();
         // Reset form
         setFormData({
-          firstName: '',
-          lastName: '',
-          email: '',
-          password: '',
-          phone: '',
-          location: '',
-          image: null
+          firstName: "",
+          lastName: "",
+          email: "",
+          password: "",
+          phone: "",
+          location: "",
+          image: null,
         });
         setImagePreview(null);
       } else {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to create user');
+        throw new Error(error.message || "Failed to create user");
       }
     } catch (error) {
-      console.error('Error creating user:', error);
-      alert('เกิดข้อผิดพลาด: ' + error.message);
+      console.error("Error creating user:", error);
+      alert("เกิดข้อผิดพลาด: " + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -207,11 +257,11 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div 
+      <div
         className="fixed inset-0 bg-opacity-20 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
-      
+
       <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-scale-in">
         <div className="flex items-center justify-between p-6 border-b">
           <h3 className="text-lg font-medium text-gray-900">เพิ่มผู้ใช้ใหม่</h3>
@@ -219,8 +269,18 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 focus:outline-none"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -228,7 +288,9 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Image Upload */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">รูปภาพ</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              รูปภาพ
+            </label>
             <div className="flex items-center space-x-4">
               {imagePreview ? (
                 <img
@@ -238,8 +300,18 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
                 />
               ) : (
                 <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  <svg
+                    className="w-8 h-8 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
                   </svg>
                 </div>
               )}
@@ -256,7 +328,9 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
           {/* Name Fields */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อ</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                ชื่อ
+              </label>
               <input
                 type="text"
                 name="firstName"
@@ -267,7 +341,9 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">นามสกุล</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                นามสกุล
+              </label>
               <input
                 type="text"
                 name="lastName"
@@ -281,7 +357,9 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
 
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">อีเมล</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              อีเมล
+            </label>
             <input
               type="email"
               name="email"
@@ -294,7 +372,9 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
 
           {/* Password */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              รหัสผ่าน
+            </label>
             <input
               type="password"
               name="password"
@@ -307,7 +387,9 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
 
           {/* Phone */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรศัพท์</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              เบอร์โทรศัพท์
+            </label>
             <input
               type="tel"
               name="phone"
@@ -320,7 +402,9 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
 
           {/* Location */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">ที่อยู่</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              ที่อยู่
+            </label>
             <input
               type="text"
               name="location"
@@ -348,9 +432,24 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
             >
               {isLoading ? (
                 <>
-                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  <svg
+                    className="animate-spin w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
                   </svg>
                   <span>กำลังสร้าง...</span>
                 </>
@@ -388,35 +487,57 @@ const MobileUserCard = ({ user, onRoleChange, onDeleteUser }) => {
           <div className="text-sm font-medium text-gray-900 truncate">
             {user.firstName} {user.lastName}
           </div>
-          <div className="text-xs text-gray-500 truncate">
-            {user.phone}
-          </div>
+          <div className="text-xs text-gray-500 truncate">{user.phone}</div>
         </div>
         <div className="flex items-center space-x-1">
           <button className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded transition-colors">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
             </svg>
           </button>
           <button
             onClick={() => onDeleteUser(user._id)}
             className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
             </svg>
           </button>
         </div>
       </div>
-      
+
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-xs text-gray-500">อีเมล:</span>
-          <span className="text-sm text-gray-900 truncate ml-2">{user.email}</span>
+          <span className="text-sm text-gray-900 truncate ml-2">
+            {user.email}
+          </span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-gray-500">ที่อยู่:</span>
-          <span className="text-sm text-gray-900 truncate ml-2">{user.location}</span>
+          <span className="text-sm text-gray-900 truncate ml-2">
+            {user.location}
+          </span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-gray-500">สถานะ:</span>
@@ -433,6 +554,7 @@ const MobileUserCard = ({ user, onRoleChange, onDeleteUser }) => {
           >
             <option value="user">User</option>
             <option value="admin">Admin</option>
+            <option value="tech">Tech</option>
           </select>
         </div>
       </div>
@@ -443,17 +565,17 @@ const MobileUserCard = ({ user, onRoleChange, onDeleteUser }) => {
 export default function ManageUsers() {
   const [users, setUsers] = useState([]);
   const [notification, setNotification] = useState({
-    message: '',
-    type: 'success',
-    isVisible: false
+    message: "",
+    type: "success",
+    isVisible: false,
   });
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     userId: null,
-    title: '',
-    message: ''
+    title: "",
+    message: "",
   });
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
@@ -470,22 +592,23 @@ export default function ManageUsers() {
   };
 
   // Filter users based on search term
-  const filteredUsers = users.filter(user => 
-    user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = users.filter(
+    (user) =>
+      user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const showNotification = (message, type = 'success') => {
+  const showNotification = (message, type = "success") => {
     setNotification({
       message,
       type,
-      isVisible: true
+      isVisible: true,
     });
   };
 
   const hideNotification = () => {
-    setNotification(prev => ({ ...prev, isVisible: false }));
+    setNotification((prev) => ({ ...prev, isVisible: false }));
   };
 
   const handleRoleChange = async (userId, newRole) => {
@@ -504,7 +627,8 @@ export default function ManageUsers() {
       isOpen: true,
       userId,
       title: "ยืนยันการลบผู้ใช้",
-      message: "คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้นี้? การกระทำนี้ไม่สามารถย้อนกลับได้"
+      message:
+        "คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้นี้? การกระทำนี้ไม่สามารถย้อนกลับได้",
     });
   };
 
@@ -515,13 +639,16 @@ export default function ManageUsers() {
       fetchUsers();
     } catch (err) {
       console.error("Error deleting user:", err.response?.data || err.message);
-      showNotification(`ลบผู้ใช้ไม่สำเร็จ: ${err.response?.data?.message || err.message}`, "error");
+      showNotification(
+        `ลบผู้ใช้ไม่สำเร็จ: ${err.response?.data?.message || err.message}`,
+        "error"
+      );
     }
-    setConfirmDialog({ isOpen: false, userId: null, title: '', message: '' });
+    setConfirmDialog({ isOpen: false, userId: null, title: "", message: "" });
   };
 
   const closeConfirmDialog = () => {
-    setConfirmDialog({ isOpen: false, userId: null, title: '', message: '' });
+    setConfirmDialog({ isOpen: false, userId: null, title: "", message: "" });
   };
 
   const handleAddUserSuccess = () => {
@@ -542,7 +669,7 @@ export default function ManageUsers() {
             opacity: 1;
           }
         }
-        
+
         @keyframes fade-in {
           from {
             opacity: 0;
@@ -551,7 +678,7 @@ export default function ManageUsers() {
             opacity: 1;
           }
         }
-        
+
         @keyframes scale-in {
           from {
             transform: scale(0.9);
@@ -562,15 +689,15 @@ export default function ManageUsers() {
             opacity: 1;
           }
         }
-        
+
         .animate-slide-in {
           animation: slide-in 0.3s ease-out;
         }
-        
+
         .animate-fade-in {
           animation: fade-in 0.3s ease-out;
         }
-        
+
         .animate-scale-in {
           animation: scale-in 0.3s ease-out;
         }
@@ -601,7 +728,7 @@ export default function ManageUsers() {
                   User Management
                 </h1>
               </div>
-              <button 
+              <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors"
               >
@@ -662,7 +789,7 @@ export default function ManageUsers() {
               </div>
             </div>
 
-             {/* Desktop View - Table */}
+            {/* Desktop View - Table */}
             <div className="hidden lg:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
@@ -720,7 +847,9 @@ export default function ManageUsers() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">{user.email}</div>
+                        <div className="text-sm text-gray-900">
+                          {user.email}
+                        </div>
                         <div className="text-xs text-gray-500">
                           {user.location}
                         </div>
@@ -735,10 +864,16 @@ export default function ManageUsers() {
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             user.role === "admin"
                               ? "bg-purple-100 text-purple-800"
+                              : user.role === "tech"
+                              ? "bg-yellow-100 text-yellow-800"
                               : "bg-gray-100 text-gray-800"
                           }`}
                         >
-                          {user.role === "admin" ? "Admin" : "User"}
+                          {user.role === "admin"
+                            ? "Admin"
+                            : user.role === "tech"
+                            ? "Tech"
+                            : "User"}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -751,6 +886,7 @@ export default function ManageUsers() {
                         >
                           <option value="user">User</option>
                           <option value="admin">Admin</option>
+                          <option value="tech">Tech</option>
                         </select>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -800,10 +936,7 @@ export default function ManageUsers() {
       </div>
 
       {/* Modals and Notifications */}
-      <Notification
-        {...notification}
-        onClose={hideNotification}
-      />
+      <Notification {...notification} onClose={hideNotification} />
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         onClose={closeConfirmDialog}
@@ -819,5 +952,3 @@ export default function ManageUsers() {
     </>
   );
 }
-
-
