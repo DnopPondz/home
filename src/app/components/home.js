@@ -156,7 +156,7 @@ const HomePage = () => {
             <p className="pl-5 mt-2 text-xl font-medium">ล้างแอร์</p>
             <p className="flex flex-row justify-center items-center gap-2 mt-2 text-gray-700 ">
               <Image
-                src="/home-img/Vector.jpg"
+                src="/home-img/vector.jpg"
                 alt="alt"
                 width={16}
                 height={16}
@@ -185,7 +185,7 @@ const HomePage = () => {
             <p className="pl-5 mt-2 text-xl font-medium">ซ่อมเครื่องใช้ไฟฟ้า</p>
             <p className="flex flex-row justify-center items-center gap-2 mt-2 text-gray-700 ">
               <Image
-                src="/home-img/Vector.jpg"
+                src="/home-img/vector.jpg"
                 alt="alt"
                 width={16}
                 height={16}
