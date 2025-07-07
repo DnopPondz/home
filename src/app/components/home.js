@@ -61,7 +61,7 @@ const HomePage = () => {
       height={320}
       className="absolute bottom-0 h-auto object-contain object-bottom
            w-[327px] sm:w-[450px] md:w-[550px] lg:w-[650px] xl:w-[750px] 2xl:w-[850px]
-           right-[-50px] sm:right-8 md:right-12 lg:right-16 xl:right-48 2xl:right-2/12 
+           right-[-50px] sm:-right-24 md:-right-30 lg:-right-28 xl:-right-38 2xl:right-1/12 3xl:right-2/12
            max-h-[100%] sm:max-h-[75%] md:max-h-[80%] lg:max-h-[85%] xl:max-h-[90%] 2xl:max-h-[95%]"
       priority
       unoptimized
