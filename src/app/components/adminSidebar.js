@@ -14,6 +14,8 @@ import {
   Bell,
   ChevronsLeft,
   ChevronsRight,
+  Info,
+  Clipboard,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -27,7 +29,25 @@ const AdminSidebar = () => {
       icon: Shield,
       label: "Dashboard",
       href: "/page/admin/dashboard",
+      roles: ["admin", "tech"],
+    },
+    {
+      icon: Tag,
+      label: "My Service",
+      href: "/page/admin/myservice",
       roles: ["admin"],
+    },
+    {
+      icon: Bell,
+      label: "Service Order",
+      href: "/page/admin/service",
+      roles: ["admin", "tech"],
+    },
+    {
+      icon: BarChart3,
+      label: "Service History",
+      href: "/page/admin/history",
+      roles: ["admin", "tech"],
     },
     {
       icon: Users,
@@ -36,22 +56,10 @@ const AdminSidebar = () => {
       roles: ["admin"],
     },
     {
-      icon: Bell,
-      label: "Serivce",
-      href: "/page/admin/service",
-      roles: ["admin", "tech"],
-    },
-    {
-      icon: BarChart3,
-      label: "History",
-      href: "/page/admin/history",
-      roles: ["admin", "tech"],
-    },
-    {
-      icon: Settings,
-      label: "Setting Service",
+      icon: Clipboard,
+      label: "My Employee",
       href: "/page/admin/setting",
-      roles: ["admin"],
+      roles: ["admin", "tech"],
     },
   ];
 

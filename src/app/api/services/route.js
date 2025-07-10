@@ -2,13 +2,13 @@ import clientPromise from "@/lib/mongodb";
 
 export const dynamic = "force-dynamic";
 
-// ✅ POST: เพิ่มบริการใหม่
+// ✅ POST: เพิ่มบริการใหม่พร้อมรูป
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { serviceType, name, priceOptions } = body;
+    const { serviceType, name, priceOptions, image } = body;
 
-    if (!serviceType || !name || !Array.isArray(priceOptions)) {
+    if (!serviceType || !name || !Array.isArray(priceOptions) || !image) {
       return new Response(JSON.stringify({ message: "ข้อมูลไม่ครบ" }), { status: 400 });
     }
 
@@ -20,6 +20,7 @@ export async function POST(req) {
       serviceType,
       name,
       priceOptions,
+      image, 
       createdAt: new Date(),
     };
 

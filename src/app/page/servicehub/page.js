@@ -1,93 +1,99 @@
-"use client"
+"use client";
 
-import React, { useState } from 'react';
-import { Search, ChevronDown, Star, MapPin } from 'lucide-react';
-import Image from 'next/image';
+import React, { useState, useEffect } from "react";
+import { Search, ChevronDown } from "lucide-react";
+import Image from "next/image";
 
 const ServiceHub = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('บริการทั้งหมด');
-  const [priceRange, setPriceRange] = useState('0-2000฿');
-  const [sortBy, setSortBy] = useState('ตามลำดับคะแนน (Ascending)');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("บริการทั้งหมด");
+  const [priceRange, setPriceRange] = useState("0-2000฿");
+  const [sortBy, setSortBy] = useState("ตามลำดับคะแนน (Ascending)");
+  const [services, setServices] = useState([]);
 
-  const services = [
-    {
-      id: 1,
-      title: 'ทำความสะอาดทั่วไป',
-      category: 'บริการทั่วไป',
-      price: '500.00 ฿',
-      rating: 4.8,
-      reviews: 245,
-      image: '/service/service-1.jpg',
-      isPopular: true
-    },
-    {
-      id: 2,
-      title: 'ล้างแอร์',
-      category: 'บริการทั่วไป',
-      price: '500.00 - 1,000.00 ฿',
-      rating: 4.9,
-      reviews: 189,
-      image: '/service/service-2.jpg',
-      isPopular: false
-    },
-    {
-      id: 3,
-      title: 'ซ่อมเครื่องซักผ้า',
-      category: 'บริการทั่วไป',
-      price: '500.00 ฿',
-      rating: 4.7,
-      reviews: 321,
-      image: '/service/service-3.jpg',
-      isPopular: true
-    },
-    
-  ];
+  // Fetch services from API on mount
+  useEffect(() => {
+    async function fetchServices() {
+      try {
+        const res = await fetch("/api/services");
+        const data = await res.json();
 
-  const ServiceCard = ({ service }) => (
-    <div className="w-[343px] h-[370px] flex flex-col border-gray-300 border rounded-lg bg-white shadow-sm">
-      <div className="w-full h-48 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center rounded-t-lg overflow-hidden">
-        <div className="text-blue-600 font-medium text-lg">
-          <Image
-                            src={service.image} 
-                            alt="alt"
-                            width={1000}
-                            height={1000}
-                            className=""
-                          />
-        </div>
-      </div>
-      
-      <div className="p-4 flex flex-col flex-1">
-        <div className="mb-3">
-          <span className="inline-block px-3 py-1 bg-[#e7eeff] text-blue-800 text-sm rounded-lg">
-            {service.category}
-          </span>
-        </div>
-        
-        <h3 className="text-lg font-semibold text-gray-800 mb-3 flex-1">
-          {service.title}
-        </h3>
-        
-        <div className="flex items-center gap-2 mb-4 text-gray-600">
-          
-          <span className="text-sm flex justify-center items-center gap-2">
+        // map data มาเป็นรูปแบบที่ ServiceCard ใช้ (แปลง fields)
+        const mapped = data.map((s) => ({
+          id: s._id,
+          title: s.name,
+          category: s.serviceType,
+          price: s.priceOptions.map((p) => p.price).join(" - ") + " ฿",
+          image: s.image || "/service/service-1.jpg",
+          // สามารถใส่ default rating, reviews ถ้าต้องการ
+          rating: 4.5,
+          reviews: 100,
+          isPopular: false,
+        }));
+
+        setServices(mapped);
+      } catch (err) {
+        console.error("Failed to fetch services:", err);
+      }
+    }
+    fetchServices();
+  }, []);
+
+  const ServiceCard = ({ service }) => {
+    const handleSelect = () => {
+      // ตัวอย่าง: แค่ alert id ออกมา
+      alert(`คุณเลือกบริการ ID: ${service.id}`);
+      // หรือทำอย่างอื่น เช่น เก็บ id ไป state, redirect, post booking ฯลฯ
+    };
+
+    return (
+      <div className="w-[343px] h-[370px] flex flex-col border-gray-300 border rounded-lg bg-white shadow-sm">
+        <div className="w-full h-48 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center rounded-t-lg overflow-hidden">
+          <div className="text-blue-600 font-medium text-lg">
             <Image
-                            src="/home-img/vector.jpg"
-                            alt="alt"
-                            width={16}
-                            height={16}
-                            className=""
-                          />{" "}ค่าบริการประมาณ {service.price}
-          </span>
+              src={service.image}
+              alt="service image"
+              width={1000}
+              height={1000}
+              className=""
+            />
+          </div>
         </div>
-        
-        <button className="text-blue-500 underline text-left hover:text-blue-700 font-medium">
-          เลือกบริการ
-        </button>
+
+        <div className="p-4 flex flex-col flex-1">
+          <div className="mb-3">
+            <span className="inline-block px-3 py-1 bg-[#e7eeff] text-blue-800 text-sm rounded-lg">
+              {service.category}
+            </span>
+          </div>
+
+          <h3 className="text-lg font-semibold text-gray-800 mb-3 flex-1">
+            {service.title}
+          </h3>
+
+          <div className="flex items-center gap-2 mb-4 text-gray-600">
+            <span className="text-sm flex justify-center items-center gap-2">
+              <Image
+                src="/home-img/vector.jpg"
+                alt="icon"
+                width={16}
+                height={16}
+                className=""
+              />{" "}
+              ค่าบริการประมาณ {service.price}
+            </span>
+          </div>
+
+          <button
+            onClick={handleSelect}
+            className="text-blue-500 underline text-left hover:text-blue-700 font-medium"
+          >
+            เลือกบริการ
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -95,12 +101,9 @@ const ServiceHub = () => {
       <div className="relative bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16 px-4">
         <div className="absolute inset-0 bg-black bg-opacity-20"></div>
         <div className="relative max-w-7xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            บริการของเรา
-          </h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">บริการของเรา</h1>
           <p className="text-lg md:text-xl mb-2">
-            ซ่อมเครื่องใช้ไฟฟ้า ซ่อมแอร์ ทำความสะอาดบ้าน และอื่น ๆ อีกมากมาย 
-
+            ซ่อมเครื่องใช้ไฟฟ้า ซ่อมแอร์ ทำความสะอาดบ้าน และอื่น ๆ อีกมากมาย
           </p>
           <p className="text-base md:text-lg opacity-90">
             โดยพนักงานแม่บ้าน และช่างมืออาชีพ
