@@ -1,5 +1,6 @@
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -58,3 +59,4 @@ export async function GET(req) {
     return new Response(JSON.stringify({ message: "เกิดข้อผิดพลาด" }), { status: 500 });
   }
 }
+

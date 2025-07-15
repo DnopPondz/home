@@ -133,24 +133,25 @@ const Navbar = () => {
                         >
                           ข้อมูลผู้ใช้
                         </Link>
-                        <button
+                        <Link
+                          href="/page/userlist"
                           className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                           onClick={() => {
                             setShowUserMenu(false);
-                            alert("ฟีเจอร์แก้ไขข้อมูลยังไม่เปิดใช้");
+                            
                           }}
                         >
                           รายการคำสั่งซ่อม
-                        </button>
-                        <button
+                        </Link>
+                        <Link
+                          href="/page/userhistory"
                           className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                           onClick={() => {
                             setShowUserMenu(false);
-                            alert("ฟีเจอร์แก้ไขข้อมูลยังไม่เปิดใช้");
                           }}
                         >
                           ประวัติการซ่อม
-                        </button>
+                        </Link>
 
                         <button
                           className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"

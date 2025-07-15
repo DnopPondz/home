@@ -4,25 +4,24 @@ import clientPromise from "@/lib/mongodb";
 export const dynamic = "force-dynamic";
 
 // GET /api/services/[id] — ดึงบริการตาม id
-export async function GET(context) {
+export async function GET(request, { params }) {
   try {
-    const params = await context.params;
     const { id } = params;
-
-    if (!ObjectId.isValid(id)) {
+    if (!id || typeof id !== "string" || id.length !== 24) {
       return new Response(JSON.stringify({ message: "ID ไม่ถูกต้อง" }), { status: 400 });
     }
-
     const client = await clientPromise;
     const db = client.db("myDB");
-    const service = await db.collection("services").findOne({ _id: new ObjectId(id) });
+    // รองรับทั้ง string และ ObjectId
+    const query = ObjectId.isValid(id) ? { _id: new ObjectId(id) } : { _id: id };
+    const service = await db.collection("services").findOne(query);
 
     if (!service) {
       return new Response(JSON.stringify({ message: "ไม่พบบริการนี้" }), { status: 404 });
     }
-
     return new Response(JSON.stringify(service), { status: 200 });
   } catch (error) {
+    console.error(error);
     return new Response(JSON.stringify({ message: "เกิดข้อผิดพลาด" }), { status: 500 });
   }
 }
