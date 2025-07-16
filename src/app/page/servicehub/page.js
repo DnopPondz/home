@@ -267,7 +267,6 @@ const ServiceHub = () => {
       };
       const response = await axios.post("/api/bookings/[id]", bookingData);
       if (response.status === 201) {
-        alert("จองบริการเรียบร้อยแล้ว!");
         setModalOpen(false);
         router.push(`/page/booking-status?bookingId=${response.data.booking._id}`);
       }

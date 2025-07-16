@@ -75,122 +75,28 @@ export async function PATCH(req, { params }) {
   }
 }
 
-// 📌 GET: Get booking by ID
 
 
-import { ObjectId } from "mongodb";
-import clientPromise from "@/lib/mongodb";
-import { NextResponse } from "next/server";
-
-export async function GET(request, { params }) {
-  const { id } = params;
-  const { searchParams } = new URL(request.url);
-  const rawUserId = searchParams.get("userId");
-
-  const userId = rawUserId?.trim();
-
-  if (!userId || !ObjectId.isValid(userId)) {
-    return NextResponse.json({ error: "Invalid or missing user ID" }, { status: 401 });
-  }
-
-  if (!id || !ObjectId.isValid(id)) {
-    return NextResponse.json({ error: "Invalid booking ID" }, { status: 400 });
-  }
-
-  try {
-    const client = await clientPromise;
-    const db = client.db("myDB");
-
-    const booking = await db.collection("bookings").findOne({
-      _id: new ObjectId(id),
-      customerId: new ObjectId(userId),
-    });
-
-    if (!booking) {
-      return NextResponse.json({ message: "Booking not found or access denied" }, { status: 404 });
-    }
-
-    return NextResponse.json(booking);
-  } catch (error) {
-    console.error("❌ API ERROR:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch booking", details: error.message },
-      { status: 500 }
-    );
-  }
-}
-
-
-
-// export async function GET(req, { params }) {
+// 📌 GET: Get bookings by userId
+// export async function GET(req: NextRequest) {
 //   try {
 //     const { searchParams } = new URL(req.url);
-//     const userId = searchParams.get('userId');
-//     const { id } = params;
+//     const userId = searchParams.get("userId");
+
+//     if (!userId || !ObjectId.isValid(userId)) {
+//       return new Response(JSON.stringify({ message: "userId ไม่ถูกต้อง" }), { status: 400 });
+//     }
 
 //     const client = await clientPromise;
 //     const db = client.db("myDB");
 //     const bookings = db.collection("bookings");
 
-//     // ถ้ามี userId ให้ดึงตาม userId
-//     if (userId) {
-//       if (!ObjectId.isValid(userId)) {
-//         return new Response(JSON.stringify({ message: "userId ไม่ถูกต้อง" }), { status: 400 });
-//       }
+//     const userBookings = await bookings
+//       .find({ userId: new ObjectId(userId) })
+//       .sort({ createdAt: -1 }) // เรียงจากใหม่ไปเก่า
+//       .toArray();
 
-//       const userBookings = await bookings.find({ userId: new ObjectId(userId) }).toArray();
-//       return new Response(JSON.stringify(userBookings), { status: 200 });
-//     }
-
-//     // ถ้ามี id ให้ดึงตาม booking ID
-//     if (id) {
-//       if (!ObjectId.isValid(id)) {
-//         return new Response(JSON.stringify({ message: "ID ไม่ถูกต้อง" }), { status: 400 });
-//       }
-
-//       const booking = await bookings.findOne({ _id: new ObjectId(id) });
-
-//       if (!booking) {
-//         return new Response(JSON.stringify({ message: "ไม่พบคำสั่งจองนี้" }), { status: 404 });
-//       }
-
-//       return new Response(JSON.stringify(booking), { status: 200 });
-//     }
-
-//     return new Response(JSON.stringify({ message: "กรุณาระบุ userId หรือ id" }), { status: 400 });
-
-//   } catch (err) {
-//     return new Response(JSON.stringify({ message: "เกิดข้อผิดพลาด" }), { status: 500 });
-//   }
-// }
-
-
-// เพิ่มใน GET method
-// export async function GET(req, { params }) {
-//   try {
-//     const { searchParams } = new URL(req.url);
-//     const userId = searchParams.get('userId');
-//     const { id } = params;
-
-//     const client = await clientPromise;
-//     const db = client.db("myDB");
-//     const bookings = db.collection("bookings");
-
-//     // ถ้ามี userId ให้ดึงตาม userId
-//     if (userId) {
-//       if (!ObjectId.isValid(userId)) {
-//         return new Response(JSON.stringify({ message: "userId ไม่ถูกต้อง" }), { status: 400 });
-//       }
-      
-//       const userBookings = await bookings.find({ userId: new ObjectId(userId) }).toArray();
-//       return new Response(JSON.stringify(userBookings), { status: 200 });
-//     }
-
-//     // ถ้ามี id ให้ดึงตาม booking ID (โค้ดเดิม)
-//     if (id) {
-//       // โค้ดเดิมของคุณ...
-//     }
-
+//     return new Response(JSON.stringify({ bookings: userBookings }), { status: 200 });
 //   } catch (err) {
 //     return new Response(JSON.stringify({ message: "เกิดข้อผิดพลาด" }), { status: 500 });
 //   }
