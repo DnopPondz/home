@@ -136,9 +136,10 @@ const HomePage = () => {
               />{" "}
               ค่าบริการประมาณ 500.00 - 1,000.00 ฿
             </p>
+            <Link href="/page/servicehub">
             <p className="pl-5 mt-2 text-xl text-blue-500 underline cursor-pointer hover:text-blue-300">
               เลือกบริการ
-            </p>
+            </p></Link>
           </div>
           {/* service 2 */}
           <div className="w-[343px] h-[370px] flex flex-col border-gray-300 border-1 rounded-lg ">
@@ -165,9 +166,10 @@ const HomePage = () => {
               />{" "}
               ค่าบริการประมาณ 500.00 - 1,000.00 ฿
             </p>
+             <Link href="/page/servicehub">
             <p className="pl-5 mt-2 text-xl text-blue-500 underline cursor-pointer hover:text-blue-300">
               เลือกบริการ
-            </p>
+            </p></Link>
           </div>
           {/* service 3 */}
           <div className="w-[343px] h-[370px] flex flex-col border-gray-300 border-1 rounded-lg ">
@@ -194,9 +196,10 @@ const HomePage = () => {
               />{" "}
               ค่าบริการประมาณ 500.00 - 1,000.00 ฿
             </p>
+             <Link href="/page/servicehub">
             <p className="pl-5 mt-2 text-xl text-blue-500 underline cursor-pointer hover:text-blue-300">
               เลือกบริการ
-            </p>
+            </p></Link>
           </div>
         </div>
         <Link href="/page/servicehub"><button className=" w-[160px] h-[50px] bg-blue-500 text-white rounded-xl cursor-pointer hover:bg-blue-300">
