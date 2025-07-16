@@ -17,30 +17,6 @@ const MyService = () => {
             hasNote: true,
             isVerified: false
         },
-        {
-            id: 2,
-            customerName: "น้ำแข็งหลอดขาว",
-            jobType: "สำหรับ 9,000 - 18,000 BTU, ติดตั้ง 2 เครื่อง",
-            address: "444/4 ถนนโชตนา เขตบางเขน จงอรุณ กรุงเทพ",
-            jobCode: "AD04071205",
-            price: "1,550.00 ฿",
-            status: "pending",
-            timestamp: "26/04/2563 เวลา 10:00 น.",
-            hasNote: true,
-            isVerified: true
-        },
-        {
-            id: 3,
-            customerName: "น้ำแข็งหลอดขาว",
-            jobType: "สำหรับ 9,000 - 18,000 BTU, ติดตั้ง 2 เครื่อง",
-            address: "444/4 ถนนโชตนา เขตบางเขน จงอรุณ กรุงเทพ",
-            jobCode: "AD04071205",
-            price: "1,550.00 ฿",
-            status: "pending",
-            timestamp: "25/04/2563 เวลา 13:00 น.",
-            hasNote: true,
-            isVerified: false
-        }
     ]);
 
     const [showPopup, setShowPopup] = useState(false);

@@ -101,3 +101,70 @@ export async function PATCH(req, { params }) {
 //     return new Response(JSON.stringify({ message: "เกิดข้อผิดพลาด" }), { status: 500 });
 //   }
 // }
+
+// 📌 PUT: Update entire booking
+export async function PUT(req, { params }) {
+  try {
+    const { id } = params;
+    const body = await req.json();
+    const { serviceId, userId, assignedTo, status, ...rest } = body;
+
+    // Validate booking ID
+    if (!id || !ObjectId.isValid(id)) {
+      return new Response(JSON.stringify({ message: "ID ไม่ถูกต้อง" }), { status: 400 });
+    }
+
+    // Validate required fields
+    if (!serviceId || !userId) {
+      return new Response(JSON.stringify({ message: "serviceId และ userId จำเป็นต้องมี" }), { status: 400 });
+    }
+
+    if (!ObjectId.isValid(serviceId) || !ObjectId.isValid(userId)) {
+      return new Response(JSON.stringify({ message: "serviceId หรือ userId ไม่ถูกต้อง" }), { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db("myDB");
+    const bookings = db.collection("bookings");
+
+    // Check if booking exists
+    const existingBooking = await bookings.findOne({ _id: new ObjectId(id) });
+    if (!existingBooking) {
+      return new Response(JSON.stringify({ message: "ไม่พบคำสั่งจองนี้" }), { status: 404 });
+    }
+
+    // Prepare update data
+    const updateData = {
+      serviceId: new ObjectId(serviceId),
+      userId: new ObjectId(userId),
+      status: status || "pending",
+      updatedAt: new Date(),
+      ...rest,
+    };
+
+    // Add assignedTo if provided and valid
+    if (assignedTo && ObjectId.isValid(assignedTo)) {
+      updateData.assignedTo = new ObjectId(assignedTo);
+    }
+
+    // Update the booking
+    const updated = await bookings.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: updateData },
+      { returnDocument: "after" }
+    );
+
+    if (!updated.value) {
+      return new Response(JSON.stringify({ message: "อัปเดตไม่สำเร็จ" }), { status: 500 });
+    }
+
+    return new Response(JSON.stringify({ 
+      message: "อัปเดตคำสั่งจองเรียบร้อย", 
+      booking: updated.value 
+    }), { status: 200 });
+
+  } catch (err) {
+    console.error("PUT Error:", err);
+    return new Response(JSON.stringify({ message: "เกิดข้อผิดพลาด" }), { status: 500 });
+  }
+}
