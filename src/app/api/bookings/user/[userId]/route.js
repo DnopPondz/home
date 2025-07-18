@@ -76,3 +76,41 @@ export async function GET(req, { params }) {
     return new Response(JSON.stringify({ message: "เกิดข้อผิดพลาด" }), { status: 500 });
   }
 }
+
+
+// 📌 POST: Notify user about booking status update
+export async function POST(req, { params }) {
+  try {
+    const { userId } = params;
+    const body = await req.json();
+    const { bookingId, newStatus, message } = body;
+
+    // Validate input
+    if (!userId || !ObjectId.isValid(userId) || !bookingId || !newStatus || !message) {
+      return new Response(JSON.stringify({ message: "ข้อมูลไม่ครบถ้วนหรือไม่ถูกต้อง" }), { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db("myDB");
+    const notifications = db.collection("notifications");
+
+    // Create notification document
+    const notification = {
+      userId: new ObjectId(userId),
+      bookingId: new ObjectId(bookingId),
+      status: newStatus,
+      message,
+      read: false,
+      createdAt: new Date()
+    };
+
+    await notifications.insertOne(notification);
+
+    return new Response(JSON.stringify({ message: "ส่งการแจ้งเตือนเรียบร้อย", notification }), { status: 201 });
+
+  } catch (error) {
+    console.error("Notification Error:", error);
+    return new Response(JSON.stringify({ message: "เกิดข้อผิดพลาดในการแจ้งเตือน" }), { status: 500 });
+  }
+}
+

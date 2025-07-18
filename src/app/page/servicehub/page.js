@@ -669,13 +669,13 @@ const ServiceHub = () => {
       </Modal>
 
       {/* Load More Button */}
-      {sortedServices.length > 0 && (
+      {/* {sortedServices.length > 0 && (
         <div className="text-center pb-12">
           <button className="bg-white text-blue-600 border border-blue-600 px-8 py-3 rounded-lg hover:bg-blue-50 transition-colors font-medium">
             โหลดเพิ่มเติม
           </button>
         </div>
-      )}
+      )} */}
     </div>
   );
 };
