@@ -39,16 +39,16 @@ const AdminSidebar = () => {
     },
     {
       icon: Bell,
-      label: "Service Order",
+      label: "Service Order & History",
       href: "/page/admin/service",
       roles: ["admin", "tech"],
     },
-    {
-      icon: BarChart3,
-      label: "Service History",
-      href: "/page/admin/history",
-      roles: ["admin", "tech"],
-    },
+    // {
+    //   icon: BarChart3,
+    //   label: "Service History",
+    //   href: "/page/admin/history",
+    //   roles: ["admin", "tech"],
+    // },
     {
       icon: Users,
       label: "USERS",
