@@ -139,7 +139,7 @@ const Service = () => {
 
       <div className="max-w-4xl mx-auto px-4 py-4">
         <div className="flex space-x-2 mb-4">
-          {["all", "pending", "accepted", "completed"].map((key) => (
+          {["all", "pending", "accepted", "completed", "rejected"].map((key) => (
             <button
               key={key}
               onClick={() => setStatusFilter(key)}
