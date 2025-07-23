@@ -6,6 +6,9 @@ import Image from "next/image";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { AuthContext } from "@/app/context/AuthContext";
+import { loadStripe } from "@stripe/stripe-js";
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
 // Modal component
 const Modal = ({ open, onClose, children }) => {
@@ -240,12 +243,30 @@ const ServiceHub = () => {
 
   // fake function: ใส่ logic ชำระเงินจริงแทนที่นี่
   const handlePayment = async () => {
-    setPaymentLoading(true);
-    setTimeout(() => {
-      setPaymentLoading(false);
-      handleBooking(); // จ่ายเสร็จแล้ว = จอง
-    }, 1500);
+  setPaymentLoading(true);
+
+  const bookingData = {
+    serviceId: selectedService.id,
+    userId: user.userId,
+    serviceName: selectedService.title,
+    amount: selectedPrice.price, // ใช้ราคาที่เลือก
+    bookingDate: selectedDate.toISOString().split('T')[0],
+    bookingTime: selectedTime,
+    customerLocation: customerAddress || user.location,
+    customerPhone: customerPhone || user.phone,
+    customerEmail: user.email,
   };
+
+  try {
+    const res = await axios.post("/api/checkout", bookingData);
+    const stripe = await stripePromise;
+    await stripe.redirectToCheckout({ sessionId: res.data.id });
+  } catch (err) {
+    console.error("Stripe checkout error", err);
+    alert("ไม่สามารถดำเนินการชำระเงินได้");
+    setPaymentLoading(false);
+  }
+};
 
   // Booking API
   const handleBooking = async () => {
