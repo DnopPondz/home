@@ -245,28 +245,48 @@ const ServiceHub = () => {
   const handlePayment = async () => {
   setPaymentLoading(true);
 
-  const bookingData = {
-    serviceId: selectedService.id,
-    userId: user.userId,
-    serviceName: selectedService.title,
-    amount: selectedPrice.price, // ใช้ราคาที่เลือก
-    bookingDate: selectedDate.toISOString().split('T')[0],
-    bookingTime: selectedTime,
-    customerLocation: customerAddress || user.location,
-    customerPhone: customerPhone || user.phone,
-    customerEmail: user.email,
-  };
-
   try {
-    const res = await axios.post("/api/checkout", bookingData);
+    const amount = parseInt(selectedPrice.price.toString().replace(/[^\d]/g, ""));
+
+    const bookingData = {
+      serviceId: selectedService.id,
+      userId: user.userId,
+      serviceName: selectedService.title,
+      serviceCategory: selectedService.category,
+      amount,
+      estimatedPrice: amount + " ฿", // เพิ่ม field นี้เพื่อให้เหมือน handleBooking
+      customerName: `${user.firstName} ${user.lastName}`,
+      customerEmail: user.email,
+      customerPhone: customerPhone || user.phone,
+      customerLocation: customerAddress || user.location,
+      bookingDate: selectedDate.toISOString().split("T")[0],
+      bookingTime: selectedTime,
+      paymentMethod,
+    };
+
+    // 🔹 Step 1: สร้าง Booking ในฐานข้อมูล
+    const bookingRes = await axios.post("/api/bookings/[id]", bookingData);
+
+    if (bookingRes.status !== 201) throw new Error("สร้าง booking ไม่สำเร็จ");
+
+    const bookingId = bookingRes.data.booking._id;
+
+    // 🔹 Step 2: สร้าง Stripe session
+    const res = await axios.post("/api/checkout", {
+      ...bookingData,
+      bookingId, // ส่งไปเผื่อใช้ใน metadata หรือ webhook
+    });
+
     const stripe = await stripePromise;
     await stripe.redirectToCheckout({ sessionId: res.data.id });
   } catch (err) {
-    console.error("Stripe checkout error", err);
+    console.error("🔥 Stripe checkout error:", err);
     alert("ไม่สามารถดำเนินการชำระเงินได้");
+  } finally {
     setPaymentLoading(false);
   }
 };
+
 
   // Booking API
   const handleBooking = async () => {
