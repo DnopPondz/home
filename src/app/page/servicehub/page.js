@@ -377,7 +377,7 @@ const ServiceHub = () => {
                 checked={selectedPrice?.price === opt.price}
                 onChange={() => setSelectedPrice(opt)}
               />
-              <span className="font-medium">{opt.label || `ตัวเลือก ${idx + 1}`}</span>
+              <span className="font-medium">{opt.option  || `ตัวเลือก ${idx + 1}`}</span>
               <span className="ml-auto text-blue-700">{opt.price} ฿</span>
             </label>
           ))}

@@ -34,11 +34,11 @@ const ServiceManagement = () => {
   const [filterType, setFilterType] = useState("all");
   const [modalMessage, setModalMessage] = useState("");
   const [formData, setFormData] = useState({
-  serviceType: '',
-  name: '',
-  priceOptions: [{ option: '', price: '' }],
-  image: ''
-});
+    serviceType: "",
+    name: "",
+    priceOptions: [{ option: "", price: "" }],
+    image: "",
+  });
 
   // API Base URL
   const API_BASE = "/api/services";
@@ -98,14 +98,14 @@ const ServiceManagement = () => {
 
     if (mode === "edit" && service) {
       setFormData({
-  serviceType: service.serviceType ?? '',
-  name: service.name ?? '',
-  priceOptions: service.priceOptions?.map(p => ({
-    option: p.option ?? '',
-    price: p.price ?? ''
-  })) ?? [{ option: '', price: '' }],
-  image: service.image ?? ''
-});
+        serviceType: service.serviceType ?? "",
+        name: service.name ?? "",
+        priceOptions: service.priceOptions?.map((p) => ({
+          option: p.option ?? "",
+          price: p.price ?? "",
+        })) ?? [{ option: "", price: "" }],
+        image: service.image ?? "",
+      });
     } else if (mode === "add") {
       resetForm();
     }
@@ -202,26 +202,54 @@ const ServiceManagement = () => {
 
   // Confirm and execute add service
   const confirmAddService = async () => {
-    try {
-      const serviceData = {
-        serviceType: formData.serviceType,
-        name: formData.name,
-        priceOptions: formData.priceOptions.filter((p) => p.option && p.price),
-        image: formData.image || "",
-      };
+  try {
+    let imageUrl = "";
 
-      await axios.post(API_BASE, serviceData);
-      await fetchServices();
-      setShowModal(false);
-      setShowAddConfirmModal(false);
-      resetForm();
-      showSuccessMessage("เพิ่มบริการสำเร็จ");
-    } catch (error) {
-      console.error("Error adding service:", error);
-      setShowAddConfirmModal(false);
-      showErrorMessage("เกิดข้อผิดพลาดในการเพิ่มบริการ");
+    // ถ้ามีรูปและเป็น base64 ให้แปลงเป็นไฟล์ก่อนอัป
+    if (formData.image) {
+      // ตรวจสอบว่าเป็น base64 data url หรือ url
+      if (formData.image.startsWith("data:image/")) {
+        // ดึง base64 จาก data url
+        const base64 = formData.image.split(",")[1];
+
+        // อัปโหลดไป imgbb
+        const imgbbKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY; // หรือใส่ไว้ใน .env.local
+        const body = new FormData();
+        body.append("image", base64);
+
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
+          method: "POST",
+          body,
+        });
+
+        const data = await res.json();
+        imageUrl = data?.data?.url || "";
+        if (!imageUrl) throw new Error("อัปโหลดรูปไม่สำเร็จ");
+      } else {
+        // ถ้าเป็น url อยู่แล้ว (กรณีแก้ไขบริการ)
+        imageUrl = formData.image;
+      }
     }
-  };
+
+    const serviceData = {
+      serviceType: formData.serviceType,
+      name: formData.name,
+      priceOptions: formData.priceOptions.filter((p) => p.option && p.price),
+      image: imageUrl, // ใส่ url ที่ได้จาก imgbb หรือ "" ถ้าไม่มีรูป
+    };
+
+    await axios.post(API_BASE, serviceData);
+    await fetchServices();
+    setShowModal(false);
+    setShowAddConfirmModal(false);
+    resetForm();
+    showSuccessMessage("เพิ่มบริการสำเร็จ");
+  } catch (error) {
+    console.error("Error adding service:", error);
+    setShowAddConfirmModal(false);
+    showErrorMessage("เกิดข้อผิดพลาดในการเพิ่มบริการ");
+  }
+};
 
   // Confirm and execute edit service
   const confirmEditService = async () => {
@@ -500,38 +528,46 @@ const ServiceManagement = () => {
                     ตัวเลือกราคา <span className="text-red-500">*</span>
                   </label>
                   {formData.priceOptions.map((option, index) => (
-  <div key={index} className="flex space-x-2 mb-3">
-    <input
-      type="text"
-      placeholder="ตัวเลือก เช่น 9,000-18,000 BTU"
-      value={option.option ?? ''} // แก้ตรงนี้
-      onChange={(e) =>
-        handlePriceOptionChange(index, 'option', e.target.value)
-      }
-      disabled={modalMode === 'view'}
-      className="w-1/2 px-2 py-1 border rounded"
-    />
-    <input
-      type="number"
-      placeholder="ราคา"
-      value={option.price ?? ''} // แก้ตรงนี้
-      onChange={(e) =>
-        handlePriceOptionChange(index, 'price', e.target.value)
-      }
-      disabled={modalMode === 'view'}
-      className="w-1/2 px-2 py-1 border rounded"
-    />
-    {modalMode !== 'view' && (
-      <button
-        type="button"
-        onClick={() => removePriceOption(index)}
-        className="text-red-500 hover:text-red-700"
-      >
-        <Trash2 size={18} />
-      </button>
-    )}
-  </div>
-))}
+                    <div key={index} className="flex space-x-2 mb-3">
+                      <input
+                        type="text"
+                        placeholder="ตัวเลือก เช่น 9,000-18,000 BTU"
+                        value={option.option ?? ""} // แก้ตรงนี้
+                        onChange={(e) =>
+                          handlePriceOptionChange(
+                            index,
+                            "option",
+                            e.target.value
+                          )
+                        }
+                        disabled={modalMode === "view"}
+                        className="w-1/2 px-2 py-1 border rounded"
+                      />
+                      <input
+                        type="number"
+                        placeholder="ราคา"
+                        value={option.price ?? ""} // แก้ตรงนี้
+                        onChange={(e) =>
+                          handlePriceOptionChange(
+                            index,
+                            "price",
+                            e.target.value
+                          )
+                        }
+                        disabled={modalMode === "view"}
+                        className="w-1/2 px-2 py-1 border rounded"
+                      />
+                      {modalMode !== "view" && (
+                        <button
+                          type="button"
+                          onClick={() => removePriceOption(index)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
                   {modalMode !== "view" && (
                     <button
                       type="button"
