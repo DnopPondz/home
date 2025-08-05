@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import {
   Calendar,
   MapPin,
@@ -16,96 +16,67 @@ import {
   Filter,
 } from "lucide-react";
 import Link from "next/link";
+import axios from "axios";
+import { AuthContext } from "@/app/context/AuthContext.js";
 
 const UserHistory = () => {
+  const { user } = useContext(AuthContext);
+  const [services, setServices] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Sample history data - completed and cancelled services
-  const historyServices = [
-    {
-      id: "AD04071205",
-      title: "คำสั่งการซ่อมรถ",
-      bookingDate: "25/04/2563",
-      serviceTime: "13:00 น.",
-      location: "พยาอาม สยาม เซียมอาง",
-      details: "ล้างฝ้า 9:00 - 18:00 BTU, ต้องล้าง 2 เครื่อง",
-      price: "1,550.00",
-      status: "เสร็จสิ้น",
-      statusColor: "green",
-      customerName: "นาย สมชาย ใจดี",
-      customerPhone: "081-234-5678",
-      customerEmail: "somchai@email.com",
-      bookingNotes: "ต้องการเริ่มงานเช้า เพราะมีนัดหมายบ่าย",
-      createdDate: "23/04/2563 14:30",
-      completedDate: "25/04/2563 16:45",
-      technician: "ช่าง วิทย์ มากความรู้",
-      rating: 5,
-      review: "บริการดีมาก ทำความสะอาดเรียบร้อย ช่างมาตรงเวลา",
-    },
-    {
-      id: "AD04071206",
-      title: "คำสั่งการซ่อมรถ",
-      bookingDate: "20/04/2563",
-      serviceTime: "10:00 น.",
-      location: "พยาอาม สยาม เซียมอาง",
-      details: "ล้างฝ้า 9:00 - 18:00 BTU, ต้องล้าง 1 เครื่อง",
-      price: "1,200.00",
-      status: "เสร็จสิ้น",
-      statusColor: "green",
-      customerName: "นาง สมหญิง รักดี",
-      customerPhone: "082-345-6789",
-      customerEmail: "somying@email.com",
-      bookingNotes: "ติดต่อล่วงหน้า 1 ชั่วโมงก่อนถึง",
-      createdDate: "18/04/2563 10:20",
-      completedDate: "20/04/2563 12:30",
-      technician: "ช่าง สมศักดิ์ ชำนาญ",
-      rating: 4,
-      review: "ช่างทำงานดี แต่มาช้ากว่านัดหมาย 15 นาที",
-    },
-    {
-      id: "AD04071207",
-      title: "คำสั่งการซ่อมรถ",
-      bookingDate: "15/04/2563",
-      serviceTime: "15:00 น.",
-      location: "พยาอาม สยาม เซียมอาง",
-      details: "ล้างฝ้า 9:00 - 18:00 BTU, ต้องล้าง 3 เครื่อง",
-      price: "2,100.00",
-      status: "ยกเลิก",
-      statusColor: "red",
-      customerName: "นาย วิชัย มั่นใจ",
-      customerPhone: "083-456-7890",
-      customerEmail: "wichai@email.com",
-      bookingNotes: "บ้านอยู่ซอย 5 ประตูสีเขียว",
-      createdDate: "13/04/2563 11:30",
-      cancelledDate: "15/04/2563 08:00",
-      cancelReason: "ลูกค้าไม่อยู่บ้าน ไม่สามารถติดต่อได้",
-      technician: null,
-      rating: null,
-      review: null,
-    },
-    {
-      id: "AD04071208",
-      title: "คำสั่งการซ่อมรถ",
-      bookingDate: "10/04/2563",
-      serviceTime: "14:00 น.",
-      location: "พยาอาม สยาม เซียมอาง",
-      details: "ล้างฝ้า 9:00 - 18:00 BTU, ต้องล้าง 2 เครื่อง",
-      price: "1,550.00",
-      status: "เสร็จสิ้น",
-      statusColor: "green",
-      customerName: "นาย ประเสริฐ ชัยชนะ",
-      customerPhone: "084-567-8901",
-      customerEmail: "prasert@email.com",
-      bookingNotes: "ขอใบเสร็จรับเงินด้วย",
-      createdDate: "08/04/2563 16:00",
-      completedDate: "10/04/2563 16:30",
-      technician: "ช่าง อนุชา เก่งงาน",
-      rating: 5,
-      review: "งานเสร็จเรียบร้อย ช่างสุภาพ แนะนำได้",
-    },
-  ];
+  useEffect(() => {
+    const fetchHistoryServices = async () => {
+      if (!user?.userId) {
+        console.warn("❌ No user ID found");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await axios.get(`/api/bookings/user/${user.userId}`, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        let bookings = [];
+        if (Array.isArray(response.data)) {
+          bookings = response.data;
+        } else if (response.data.bookings && Array.isArray(response.data.bookings)) {
+          bookings = response.data.bookings;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          bookings = response.data.data;
+        }
+
+        // แก้ไขส่วนนี้ - ดึงแค่ booking ที่เป็น completed และ rejected เท่านั้น
+        const filtered = bookings.filter((booking) => 
+          booking.status === "completed" || booking.status === "rejected"
+        );
+        setServices(filtered);
+      } catch (err) {
+        if (err.response?.status === 400) {
+          setError("ข้อมูลผู้ใช้ไม่ถูกต้อง");
+        } else if (err.response?.status === 404) {
+          setError("ไม่พบข้อมูลการจอง");
+        } else if (err.response?.status === 500) {
+          setError("เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
+        } else {
+          setError("ไม่สามารถโหลดข้อมูลได้");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistoryServices();
+  }, [user]);
 
   const handleViewDetails = (service) => {
     setSelectedService(service);
@@ -114,8 +85,10 @@ const UserHistory = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
+      case "completed":
       case "เสร็จสิ้น":
         return <CheckCircle className="w-4 h-4" />;
+      case "rejected":
       case "ยกเลิก":
         return <XCircle className="w-4 h-4" />;
       default:
@@ -123,24 +96,37 @@ const UserHistory = () => {
     }
   };
 
-  const getStatusColor = (statusColor) => {
-    switch (statusColor) {
-      case "green":
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "completed":
+      case "เสร็จสิ้น":
         return "bg-green-100 text-green-800";
-      case "red":
+      case "rejected":
+      case "ยกเลิก":
         return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
+  const getStatusText = (status) => {
+    switch (status) {
+      case "completed":
+        return "เสร็จสิ้น";
+      case "rejected":
+        return "ยกเลิก";
+      default:
+        return status;
+    }
+  };
+
   const filteredServices =
     filterStatus === "all"
-      ? historyServices
-      : historyServices.filter((service) =>
+      ? services
+      : services.filter((service) =>
           filterStatus === "completed"
-            ? service.status === "เสร็จสิ้น"
-            : service.status === "ยกเลิก"
+            ? service.status === "completed" || service.status === "เสร็จสิ้น"
+            : service.status === "rejected" || service.status === "ยกเลิก"
         );
 
   const renderStars = (rating) => {
@@ -163,6 +149,22 @@ const UserHistory = () => {
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">กำลังโหลดข้อมูล...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -255,7 +257,7 @@ const UserHistory = () => {
                   <span className="text-gray-600">เสร็จสิ้น</span>
                   <span className="font-semibold text-green-600">
                     {
-                      historyServices.filter((s) => s.status === "เสร็จสิ้น")
+                      services.filter((s) => s.status === "completed" || s.status === "เสร็จสิ้น")
                         .length
                     }
                   </span>
@@ -264,7 +266,7 @@ const UserHistory = () => {
                   <span className="text-gray-600">ยกเลิก</span>
                   <span className="font-semibold text-red-600">
                     {
-                      historyServices.filter((s) => s.status === "ยกเลิก")
+                      services.filter((s) => s.status === "rejected" || s.status === "ยกเลิก")
                         .length
                     }
                   </span>
@@ -272,7 +274,7 @@ const UserHistory = () => {
                 <div className="flex justify-between">
                   <span className="text-gray-600">ทั้งหมด</span>
                   <span className="font-semibold text-blue-600">
-                    {historyServices.length}
+                    {services.length}
                   </span>
                 </div>
               </div>
@@ -300,7 +302,7 @@ const UserHistory = () => {
                           : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                       }`}
                     >
-                      ทั้งหมด ({historyServices.length})
+                      ทั้งหมด ({services.length})
                     </button>
                     <button
                       onClick={() => setFilterStatus("completed")}
@@ -312,7 +314,7 @@ const UserHistory = () => {
                     >
                       เสร็จสิ้น (
                       {
-                        historyServices.filter((s) => s.status === "เสร็จสิ้น")
+                        services.filter((s) => s.status === "completed" || s.status === "เสร็จสิ้น")
                           .length
                       }
                       )
@@ -327,7 +329,7 @@ const UserHistory = () => {
                     >
                       ยกเลิก (
                       {
-                        historyServices.filter((s) => s.status === "ยกเลิก")
+                        services.filter((s) => s.status === "rejected" || s.status === "ยกเลิก")
                           .length
                       }
                       )
@@ -337,15 +339,15 @@ const UserHistory = () => {
 
                 {/* Service History List */}
                 <div className="space-y-6">
-                  {filteredServices.map((service) => (
+                  {filteredServices.map((service, index) => (
                     <div
-                      key={service.id}
+                      key={service.id || index}
                       className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow"
                     >
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex-1">
                           <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                            {service.title} : {service.id}
+                            {service.serviceName || service.service || "-"}
                           </h3>
                           <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
                             <div className="flex items-center space-x-1">
@@ -358,7 +360,7 @@ const UserHistory = () => {
                           </div>
                           <div className="flex items-center space-x-1 text-sm text-gray-600 mb-2">
                             <MapPin className="w-4 h-4" />
-                            <span>{service.location}</span>
+                            <span>{service.customerLocation}</span>
                           </div>
                           <div className="flex items-center space-x-1 text-sm text-gray-600 mb-3">
                             <User className="w-4 h-4" />
@@ -371,16 +373,13 @@ const UserHistory = () => {
                           )}
                         </div>
                         <div className="text-right">
-                          <div className="text-sm text-gray-500 mb-1">
-                            สถานะ:
-                          </div>
                           <span
                             className={`px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1 ${getStatusColor(
-                              service.statusColor
+                              service.status
                             )}`}
                           >
                             {getStatusIcon(service.status)}
-                            <span>{service.status}</span>
+                            <span>{getStatusText(service.status)}</span>
                           </span>
                         </div>
                       </div>
@@ -395,9 +394,9 @@ const UserHistory = () => {
                               {service.details}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {service.status === "เสร็จสิ้น"
-                                ? `เสร็จเมื่อ: ${service.completedDate}`
-                                : `ยกเลิกเมื่อ: ${service.cancelledDate}`}
+                              {service.status === "completed" || service.status === "เสร็จสิ้น"
+                                ? `เสร็จเมื่อ: ${service.serviceCategory}`
+                                : `ยกเลิกเมื่อ: ${service.serviceCategory}`}
                             </p>
                           </div>
                           <div className="text-right">
@@ -405,7 +404,7 @@ const UserHistory = () => {
                               ราคารวม:
                             </div>
                             <div className="text-2xl font-bold text-gray-800 mb-3">
-                              {service.price} ฿
+                              {service.estimatedPrice} ฿
                             </div>
                             <button
                               onClick={() => handleViewDetails(service)}
@@ -455,7 +454,7 @@ const UserHistory = () => {
                     {/* Service Info */}
                     <div
                       className={`p-6 rounded-lg ${
-                        selectedService.status === "เสร็จสิ้น"
+                        selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
                           ? "bg-green-50"
                           : "bg-red-50"
                       }`}
@@ -464,7 +463,7 @@ const UserHistory = () => {
                         <div>
                           <h4
                             className={`font-semibold text-lg ${
-                              selectedService.status === "เสร็จสิ้น"
+                              selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
                                 ? "text-green-800"
                                 : "text-red-800"
                             }`}
@@ -473,7 +472,7 @@ const UserHistory = () => {
                           </h4>
                           <p
                             className={`${
-                              selectedService.status === "เสร็จสิ้น"
+                              selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
@@ -483,11 +482,11 @@ const UserHistory = () => {
                         </div>
                         <span
                           className={`px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1 ${getStatusColor(
-                            selectedService.statusColor
+                            selectedService.status
                           )}`}
                         >
                           {getStatusIcon(selectedService.status)}
-                          <span>{selectedService.status}</span>
+                          <span>{getStatusText(selectedService.status)}</span>
                         </span>
                       </div>
 
@@ -495,7 +494,7 @@ const UserHistory = () => {
                         <div>
                           <p
                             className={`text-sm mb-1 ${
-                              selectedService.status === "เสร็จสิ้น"
+                              selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
@@ -504,7 +503,7 @@ const UserHistory = () => {
                           </p>
                           <p
                             className={`font-medium ${
-                              selectedService.status === "เสร็จสิ้น"
+                              selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
                                 ? "text-green-800"
                                 : "text-red-800"
                             }`}
@@ -516,7 +515,7 @@ const UserHistory = () => {
                         <div>
                           <p
                             className={`text-sm mb-1 ${
-                              selectedService.status === "เสร็จสิ้น"
+                              selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
@@ -525,12 +524,12 @@ const UserHistory = () => {
                           </p>
                           <p
                             className={`font-medium ${
-                              selectedService.status === "เสร็จสิ้น"
+                              selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
                                 ? "text-green-800"
                                 : "text-red-800"
                             }`}
                           >
-                            {selectedService.location}
+                            {selectedService.customerLocation}
                           </p>
                         </div>
                       </div>
@@ -582,7 +581,7 @@ const UserHistory = () => {
                             รายการงาน:
                           </p>
                           <p className="text-gray-800">
-                            {selectedService.details}
+                            {selectedService.details || "-"}
                           </p>
                         </div>
                         <div>
@@ -590,7 +589,7 @@ const UserHistory = () => {
                             หมายเหตุจากลูกค้า:
                           </p>
                           <p className="text-gray-800">
-                            {selectedService.bookingNotes}
+                            {selectedService.bookingNotes || "-"}
                           </p>
                         </div>
                         {selectedService.technician && (
@@ -618,7 +617,7 @@ const UserHistory = () => {
                             ราคารวม:
                           </span>
                           <span className="text-2xl font-bold text-green-600">
-                            {selectedService.price} ฿
+                            {selectedService.estimatedPrice} 
                           </span>
                         </div>
                       </div>
@@ -668,19 +667,19 @@ const UserHistory = () => {
                         <div className="flex items-center space-x-3">
                           <div
                             className={`w-2 h-2 rounded-full ${
-                              selectedService.status === "เสร็จสิ้น"
+                              selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
                                 ? "bg-green-500"
                                 : "bg-red-500"
                             }`}
                           ></div>
                           <div>
                             <p className="text-sm font-medium text-gray-800">
-                              {selectedService.status === "เสร็จสิ้น"
+                              {selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
                                 ? "เสร็จสิ้นการให้บริการ"
                                 : "ยกเลิกการให้บริการ"}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {selectedService.status === "เสร็จสิ้น"
+                              {selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
                                 ? selectedService.completedDate
                                 : selectedService.cancelledDate}
                             </p>

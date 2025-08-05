@@ -1,28 +1,31 @@
 // api/bookings/user/[userId]/route.js
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 
-export const dynamic = "force-dynamic";
-
 // 📌 GET: Get all bookings for specific user
-export async function GET(req, { params }) {
-  try {
-    const { userId } = params;
 
-    // Validate userId
+export async function GET(req, context) {
+  try {
+    const userId = context?.params?.userId;
+
     if (!userId || !ObjectId.isValid(userId)) {
-      return new Response(JSON.stringify({ message: "userId ไม่ถูกต้อง" }), { status: 400 });
+      return new Response(JSON.stringify({ message: "Invalid user ID" }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
+
 
     const client = await clientPromise;
     const db = client.db("myDB");
     const bookings = db.collection("bookings");
 
-    // Get user's bookings with service and technician details
     const userBookings = await bookings.aggregate([
-      {
-        $match: { userId: new ObjectId(userId) }
-      },
+      { $match: { userId: new ObjectId(userId) } },
+      { $sort: { createdAt: -1 } },
       {
         $lookup: {
           from: "services",
@@ -60,41 +63,48 @@ export async function GET(req, { params }) {
           serviceDetails: { $arrayElemAt: ["$serviceDetails", 0] },
           technicianDetails: { $arrayElemAt: ["$technicianDetails", 0] }
         }
-      },
-      {
-        $sort: { createdAt: -1 }
       }
-    ]).toArray();
+      // { $limit: 500 } // Optional: Limit if needed
+    ], { allowDiskUse: true }).toArray();
 
-    return new Response(JSON.stringify({ 
-      message: "ดึงข้อมูลคำสั่งจองเรียบร้อย", 
-      bookings: userBookings 
-    }), { status: 200 });
+    return new Response(JSON.stringify({
+      message: "ดึงข้อมูลคำสั่งจองเรียบร้อย",
+      bookings: userBookings
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
 
   } catch (error) {
     console.error("Get User Bookings Error:", error);
-    return new Response(JSON.stringify({ message: "เกิดข้อผิดพลาด" }), { status: 500 });
+    return new Response(JSON.stringify({ message: "เกิดข้อผิดพลาด" }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
 
 
 // 📌 POST: Notify user about booking status update
-export async function POST(req, { params }) {
+export async function POST(req, context) {
   try {
+    const { params } = context;
     const { userId } = params;
     const body = await req.json();
     const { bookingId, newStatus, message } = body;
 
     // Validate input
     if (!userId || !ObjectId.isValid(userId) || !bookingId || !newStatus || !message) {
-      return new Response(JSON.stringify({ message: "ข้อมูลไม่ครบถ้วนหรือไม่ถูกต้อง" }), { status: 400 });
+      return new Response(JSON.stringify({ message: "ข้อมูลไม่ครบถ้วนหรือไม่ถูกต้อง" }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     const client = await clientPromise;
     const db = client.db("myDB");
     const notifications = db.collection("notifications");
 
-    // Create notification document
     const notification = {
       userId: new ObjectId(userId),
       bookingId: new ObjectId(bookingId),
@@ -106,11 +116,19 @@ export async function POST(req, { params }) {
 
     await notifications.insertOne(notification);
 
-    return new Response(JSON.stringify({ message: "ส่งการแจ้งเตือนเรียบร้อย", notification }), { status: 201 });
+    return new Response(JSON.stringify({
+      message: "ส่งการแจ้งเตือนเรียบร้อย",
+      notification
+    }), {
+      status: 201,
+      headers: { 'Content-Type': 'application/json' }
+    });
 
   } catch (error) {
     console.error("Notification Error:", error);
-    return new Response(JSON.stringify({ message: "เกิดข้อผิดพลาดในการแจ้งเตือน" }), { status: 500 });
+    return new Response(JSON.stringify({ message: "เกิดข้อผิดพลาดในการแจ้งเตือน" }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
-

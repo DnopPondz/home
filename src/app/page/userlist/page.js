@@ -56,9 +56,6 @@ useEffect(() => {
       console.log("🔄 Filtered bookings:", filtered);
       setServices(filtered);
     } catch (err) {
-      console.error("❌ Error fetching bookings:", err);
-      console.error("❌ Error response:", err.response?.data);
-
       if (err.response?.status === 400) {
         setError("ข้อมูลผู้ใช้ไม่ถูกต้อง");
       } else if (err.response?.status === 404) {
