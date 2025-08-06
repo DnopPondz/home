@@ -406,13 +406,7 @@ const UserHistory = () => {
                                 รายการ:
                               </p>
                               <p className="text-gray-800 mb-2">
-                                {service.details}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {service.status === "completed" ||
-                                service.status === "เสร็จสิ้น"
-                                  ? `เสร็จเมื่อ: ${service.serviceCategory}`
-                                  : `ยกเลิกเมื่อ: ${service.serviceCategory}`}
+                                {service.detail}
                               </p>
                             </div>
                             <div className="text-right">
@@ -641,7 +635,7 @@ const UserHistory = () => {
                             ราคารวม:
                           </span>
                           <span className="text-2xl font-bold text-green-600">
-                            {selectedService.estimatedPrice} ฿
+                            {selectedService.estimatedPrice} 
                           </span>
                         </div>
                       </div>

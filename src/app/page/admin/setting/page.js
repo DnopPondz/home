@@ -10,19 +10,32 @@ const SettingService = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedServices, setSelectedServices] = useState([]);
+  const [completedJobs, setCompletedJobs] = useState(0);
 
 
+useEffect(() => {
+  const fetchCompletedJobs = async () => {
+    try {
+      const res = await axios.get("/api/bookings?status=completed");
+      setCompletedJobs(res.data.length);  // สมมติว่า API ส่ง array ของ booking กลับมา
+    } catch (error) {
+      console.error('ไม่สามารถโหลดข้อมูลงานที่เสร็จได้:', error);
+    }
+  };
+
+  fetchCompletedJobs();
+}, []);
 
   const serviceOptions = [
-    'สีทองสีรี',
-    'ติดผึ้งเพลง', 
-    'ท่อกวามสอเตอร์ชัน',
-    'ย้อนแดร์',
-    'ย้อนแดร์ย้อนร่าง',
-    'ติดจัดเจเหน็ด',
-    'ติดจัดเจเล้อลอี',
-    'ติดจัดเจเร่อง',
-    'ติดจัดเจบ่าง'
+    // 'สีทองสีรี',
+    // 'ติดผึ้งเพลง', 
+    // 'ท่อกวามสอเตอร์ชัน',
+    // 'ย้อนแดร์',
+    // 'ย้อนแดร์ย้อนร่าง',
+    // 'ติดจัดเจเหน็ด',
+    // 'ติดจัดเจเล้อลอี',
+    // 'ติดจัดเจเร่อง',
+    'ไม่มีการกรอง'
   ];
 
   // Fetch users from API
@@ -130,7 +143,7 @@ const SettingService = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">งานที่เสร็จ</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {users.reduce((sum, user) => sum + (user.completedJobs || 0), 0)}
+                  {users.reduce((sum, user) => sum + (completedJobs || 0), 0)}
                 </p>
               </div>
             </div>
@@ -168,10 +181,10 @@ const SettingService = () => {
                 />
               </div>
             </div>
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+            {/* <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
               <Plus className="h-4 w-4" />
               เพิ่มช่างใหม่
-            </button>
+            </button> */}
           </div>
 
           {/* Service Filter */}
@@ -225,12 +238,12 @@ const SettingService = () => {
                     </div>
                   </div>
                   <div className="flex space-x-2">
-                    <button className="text-blue-600 hover:text-blue-800">
+                    {/* <button className="text-blue-600 hover:text-blue-800">
                       <Edit className="h-4 w-4" />
-                    </button>
-                    <button className="text-red-600 hover:text-red-800">
+                    </button> */}
+                    {/* <button className="text-red-600 hover:text-red-800">
                       <Trash2 className="h-4 w-4" />
-                    </button>
+                    </button> */}
                   </div>
                 </div>
 
@@ -279,7 +292,7 @@ const SettingService = () => {
                   </div>
                   <div className="text-sm">
                     <span className="text-gray-600">คะแนน: </span>
-                    <span className="font-semibold">{user.rating || 'N/A'}</span>
+                    <span className="font-semibold">{user.rating || '5'}</span>
                     {user.rating && (
                       <span className="text-yellow-500 ml-1">{getRatingStars(user.rating)}</span>
                     )}

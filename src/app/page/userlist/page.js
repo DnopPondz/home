@@ -408,12 +408,6 @@ const ServiceListPage = () => {
                               <p className="text-gray-800 mb-2">
                                 {service.details}
                               </p>
-                              <p className="text-xs text-gray-500">
-                                {service.status === "pending" ||
-                                service.status === "รอดำเนินการ"
-                                  ? `เสร็จเมื่อ: ${service.serviceCategory}`
-                                  : `ยกเลิกเมื่อ: ${service.serviceCategory}`}
-                              </p>
                             </div>
                             <div className="text-right">
                               <div className="text-sm text-gray-500 mb-1">
@@ -641,7 +635,7 @@ const ServiceListPage = () => {
                             ราคารวม:
                           </span>
                           <span className="text-2xl font-bold text-green-600">
-                            {selectedService.estimatedPrice} ฿
+                            {selectedService.estimatedPrice} 
                           </span>
                         </div>
                       </div>

@@ -298,6 +298,7 @@ const ServiceHub = () => {
         serviceName: selectedService.title,
         serviceCategory: selectedService.category,
         estimatedPrice: selectedPrice.price + " ฿",
+        selectedOption: selectedPrice.option, 
         customerName: `${user.firstName} ${user.lastName}`,
         customerEmail: user.email,
         customerPhone: customerPhone || user.phone,
