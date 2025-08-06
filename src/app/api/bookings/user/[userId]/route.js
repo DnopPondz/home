@@ -52,6 +52,7 @@ export async function GET(req, context) {
           serviceName: 1,
           serviceCategory: 1,
           estimatedPrice: 1,
+          selectedOption: 1,
           customerName: 1,
           customerEmail: 1,
           customerPhone: 1,

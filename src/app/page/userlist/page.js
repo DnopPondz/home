@@ -369,7 +369,7 @@ const ServiceListPage = () => {
                                 <Calendar className="w-4 h-4" />
                                 <span>
                                   วันที่บริการ: {service.bookingDate} เวลา{" "}
-                                  {service.serviceTime}
+                                  {service.bookingTime}
                                 </span>
                               </div>
                             </div>
@@ -406,7 +406,7 @@ const ServiceListPage = () => {
                                 รายการ:
                               </p>
                               <p className="text-gray-800 mb-2">
-                                {service.details}
+                                {service.selectedOption}
                               </p>
                             </div>
                             <div className="text-right">
@@ -599,7 +599,7 @@ const ServiceListPage = () => {
                             รายการงาน:
                           </p>
                           <p className="text-gray-800">
-                            {selectedService.details || "-"}
+                            {selectedService.selectedOption || "-"}
                           </p>
                         </div>
                         <div>

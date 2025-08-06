@@ -254,6 +254,7 @@ const ServiceHub = () => {
       serviceName: selectedService.title,
       serviceCategory: selectedService.category,
       amount,
+       selectedOption: selectedPrice.option, 
       estimatedPrice: amount + " ฿", // เพิ่ม field นี้เพื่อให้เหมือน handleBooking
       customerName: `${user.firstName} ${user.lastName}`,
       customerEmail: user.email,
