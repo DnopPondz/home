@@ -25,6 +25,7 @@ export async function POST(req) {
     const phone = formData.get("phone")
     const location = formData.get("location")
     const file = formData.get("image") // รูปภาพ
+    const role = formData.get("role") || "user"
     
 
     if (!firstName || !lastName || !email || !password || !phone || !location || !file) {
@@ -75,6 +76,7 @@ body.append("image", base64Image)
       imageUrl,
       createdAt: new Date(),
       updatedAt: new Date(),
+      role,
     })
 
     return new Response(JSON.stringify({ message: "User registered", userId: result.insertedId }), { status: 201 })

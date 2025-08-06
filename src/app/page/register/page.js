@@ -17,6 +17,7 @@ const RegisterPage = () => {
     password: "",
     confirmPassword: "",
     acceptTerms: false,
+    role : "user",
   });
 
   const router = useRouter();
@@ -79,6 +80,7 @@ const RegisterPage = () => {
         password: "",
         confirmPassword: "",
         acceptTerms: false,
+        role : "user",
       });
       setImage(null);
 
