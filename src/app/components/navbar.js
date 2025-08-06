@@ -12,22 +12,22 @@ const Navbar = () => {
   const notifications = [
     {
       id: 1,
-      message: "คำขอบริการของคุณได้รับการอนุมัติแล้ว",
-      time: "2 ชั่วโมงที่แล้ว",
+      message: "Function นี้ยังไม่พร้อมใช้งาน",
+      time: "Now",
       isRead: false,
     },
-    {
-      id: 2,
-      message: "มีช่างเทคนิคกำลังเดินทางไปยังสถานที่ของคุณ",
-      time: "5 ชั่วโมงที่แล้ว",
-      isRead: false,
-    },
-    {
-      id: 3,
-      message: "งานซ่อมแซมเสร็จสิ้นแล้ว",
-      time: "1 วันที่แล้ว",
-      isRead: true,
-    },
+    // {
+    //   id: 2,
+    //   message: "มีช่างเทคนิคกำลังเดินทางไปยังสถานที่ของคุณ",
+    //   time: "5 ชั่วโมงที่แล้ว",
+    //   isRead: false,
+    // },
+    // {
+    //   id: 3,
+    //   message: "งานซ่อมแซมเสร็จสิ้นแล้ว",
+    //   time: "1 วันที่แล้ว",
+    //   isRead: true,
+    // },
   ];
 
   const toggleNotifications = () => {

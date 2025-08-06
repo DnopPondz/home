@@ -14,6 +14,7 @@ import {
   XCircle,
   AlertCircle,
   Filter,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
@@ -49,15 +50,19 @@ const UserHistory = () => {
         let bookings = [];
         if (Array.isArray(response.data)) {
           bookings = response.data;
-        } else if (response.data.bookings && Array.isArray(response.data.bookings)) {
+        } else if (
+          response.data.bookings &&
+          Array.isArray(response.data.bookings)
+        ) {
           bookings = response.data.bookings;
         } else if (response.data.data && Array.isArray(response.data.data)) {
           bookings = response.data.data;
         }
 
         // แก้ไขส่วนนี้ - ดึงแค่ booking ที่เป็น completed และ rejected เท่านั้น
-        const filtered = bookings.filter((booking) => 
-          booking.status === "completed" || booking.status === "rejected"
+        const filtered = bookings.filter(
+          (booking) =>
+            booking.status === "completed" || booking.status === "rejected"
         );
         setServices(filtered);
       } catch (err) {
@@ -149,14 +154,6 @@ const UserHistory = () => {
       </div>
     );
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">กำลังโหลดข้อมูล...</p>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -257,8 +254,10 @@ const UserHistory = () => {
                   <span className="text-gray-600">เสร็จสิ้น</span>
                   <span className="font-semibold text-green-600">
                     {
-                      services.filter((s) => s.status === "completed" || s.status === "เสร็จสิ้น")
-                        .length
+                      services.filter(
+                        (s) =>
+                          s.status === "completed" || s.status === "เสร็จสิ้น"
+                      ).length
                     }
                   </span>
                 </div>
@@ -266,16 +265,19 @@ const UserHistory = () => {
                   <span className="text-gray-600">ยกเลิก</span>
                   <span className="font-semibold text-red-600">
                     {
-                      services.filter((s) => s.status === "rejected" || s.status === "ยกเลิก")
-                        .length
+                      services.filter(
+                        (s) => s.status === "rejected" || s.status === "ยกเลิก"
+                      ).length
                     }
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">ทั้งหมด</span>
-                  <span className="font-semibold text-blue-600">
-                    {services.length}
-                  </span>
+                <div className="pt-2 border-t">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">รวมทั้งหมด</span>
+                    <span className="font-semibold text-blue-600">
+                      {services.length}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -291,7 +293,9 @@ const UserHistory = () => {
                     <h2 className="text-lg font-semibold text-gray-800">
                       ประวัติการใช้บริการ
                     </h2>
-                    <Filter className="w-5 h-5 text-gray-500" />
+                    <div className="flex items-center space-x-2">
+                      <Filter className="w-5 h-5 text-gray-500" />
+                    </div>
                   </div>
                   <div className="flex space-x-2">
                     <button
@@ -314,8 +318,10 @@ const UserHistory = () => {
                     >
                       เสร็จสิ้น (
                       {
-                        services.filter((s) => s.status === "completed" || s.status === "เสร็จสิ้น")
-                          .length
+                        services.filter(
+                          (s) =>
+                            s.status === "completed" || s.status === "เสร็จสิ้น"
+                        ).length
                       }
                       )
                     </button>
@@ -329,8 +335,10 @@ const UserHistory = () => {
                     >
                       ยกเลิก (
                       {
-                        services.filter((s) => s.status === "rejected" || s.status === "ยกเลิก")
-                          .length
+                        services.filter(
+                          (s) =>
+                            s.status === "rejected" || s.status === "ยกเลิก"
+                        ).length
                       }
                       )
                     </button>
@@ -339,87 +347,96 @@ const UserHistory = () => {
 
                 {/* Service History List */}
                 <div className="space-y-6">
-                  {filteredServices.map((service, index) => (
-                    <div
-                      key={service.id || index}
-                      className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow"
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                            {service.serviceName || service.service || "-"}
-                          </h3>
-                          <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
-                            <div className="flex items-center space-x-1">
-                              <Calendar className="w-4 h-4" />
-                              <span>
-                                วันที่บริการ: {service.bookingDate} เวลา{" "}
-                                {service.serviceTime}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-1 text-sm text-gray-600 mb-2">
-                            <MapPin className="w-4 h-4" />
-                            <span>{service.customerLocation}</span>
-                          </div>
-                          <div className="flex items-center space-x-1 text-sm text-gray-600 mb-3">
-                            <User className="w-4 h-4" />
-                            <span>ลูกค้า: {service.customerName}</span>
-                          </div>
-                          {service.rating && (
-                            <div className="mb-2">
-                              {renderStars(service.rating)}
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <span
-                            className={`px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1 ${getStatusColor(
-                              service.status
-                            )}`}
-                          >
-                            {getStatusIcon(service.status)}
-                            <span>{getStatusText(service.status)}</span>
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="border-t pt-4">
-                        <div className="flex justify-between items-center">
+                  {loading ? (
+                    // Loading State - แสดงแค่ไอคอนหมุน
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                      <p className="mt-4 text-gray-600">กำลังโหลดข้อมูล...</p>
+                    </div>
+                  ) : (
+                    filteredServices.map((service, index) => (
+                      <div
+                        key={service.id || index}
+                        className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow"
+                      >
+                        <div className="flex justify-between items-start mb-4">
                           <div className="flex-1">
-                            <p className="text-sm text-gray-600 mb-1">
-                              รายการ:
-                            </p>
-                            <p className="text-gray-800 mb-2">
-                              {service.details}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {service.status === "completed" || service.status === "เสร็จสิ้น"
-                                ? `เสร็จเมื่อ: ${service.serviceCategory}`
-                                : `ยกเลิกเมื่อ: ${service.serviceCategory}`}
-                            </p>
+                            <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                              {service.serviceName || service.service || "-"}
+                            </h3>
+                            <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
+                              <div className="flex items-center space-x-1">
+                                <Calendar className="w-4 h-4" />
+                                <span>
+                                  วันที่บริการ: {service.bookingDate} เวลา{" "}
+                                  {service.serviceTime}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-1 text-sm text-gray-600 mb-2">
+                              <MapPin className="w-4 h-4" />
+                              <span>{service.customerLocation}</span>
+                            </div>
+                            <div className="flex items-center space-x-1 text-sm text-gray-600 mb-3">
+                              <User className="w-4 h-4" />
+                              <span>ลูกค้า: {service.customerName}</span>
+                            </div>
+                            {service.rating && (
+                              <div className="mb-2">
+                                {renderStars(service.rating)}
+                              </div>
+                            )}
                           </div>
                           <div className="text-right">
-                            <div className="text-sm text-gray-500 mb-1">
-                              ราคารวม:
-                            </div>
-                            <div className="text-2xl font-bold text-gray-800 mb-3">
-                              {service.estimatedPrice} ฿
-                            </div>
-                            <button
-                              onClick={() => handleViewDetails(service)}
-                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                            <span
+                              className={`px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1 ${getStatusColor(
+                                service.status
+                              )}`}
                             >
-                              <Eye className="w-4 h-4" />
-                              <span>ดูรายละเอียด</span>
-                            </button>
+                              {getStatusIcon(service.status)}
+                              <span>{getStatusText(service.status)}</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="border-t pt-4">
+                          <div className="flex justify-between items-center">
+                            <div className="flex-1">
+                              <p className="text-sm text-gray-600 mb-1">
+                                รายการ:
+                              </p>
+                              <p className="text-gray-800 mb-2">
+                                {service.details}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {service.status === "completed" ||
+                                service.status === "เสร็จสิ้น"
+                                  ? `เสร็จเมื่อ: ${service.serviceCategory}`
+                                  : `ยกเลิกเมื่อ: ${service.serviceCategory}`}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm text-gray-500 mb-1">
+                                ราคารวม:
+                              </div>
+                              <div className="text-2xl font-bold text-gray-800 mb-3">
+                                {service.estimatedPrice}
+                              </div>
+                              <button
+                                onClick={() => handleViewDetails(service)}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                              >
+                                <Eye className="w-4 h-4" />
+                                <span>ดูรายละเอียด</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
 
-                  {filteredServices.length === 0 && (
+                  {!loading && filteredServices.length === 0 && (
                     <div className="text-center py-12 bg-white rounded-lg shadow-md">
                       <div className="text-gray-400 mb-4">
                         <FileText className="w-12 h-12 mx-auto" />
@@ -454,7 +471,8 @@ const UserHistory = () => {
                     {/* Service Info */}
                     <div
                       className={`p-6 rounded-lg ${
-                        selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
+                        selectedService.status === "completed" ||
+                        selectedService.status === "เสร็จสิ้น"
                           ? "bg-green-50"
                           : "bg-red-50"
                       }`}
@@ -463,7 +481,8 @@ const UserHistory = () => {
                         <div>
                           <h4
                             className={`font-semibold text-lg ${
-                              selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
+                              selectedService.status === "completed" ||
+                              selectedService.status === "เสร็จสิ้น"
                                 ? "text-green-800"
                                 : "text-red-800"
                             }`}
@@ -472,7 +491,8 @@ const UserHistory = () => {
                           </h4>
                           <p
                             className={`${
-                              selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
+                              selectedService.status === "completed" ||
+                              selectedService.status === "เสร็จสิ้น"
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
@@ -494,7 +514,8 @@ const UserHistory = () => {
                         <div>
                           <p
                             className={`text-sm mb-1 ${
-                              selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
+                              selectedService.status === "completed" ||
+                              selectedService.status === "เสร็จสิ้น"
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
@@ -503,7 +524,8 @@ const UserHistory = () => {
                           </p>
                           <p
                             className={`font-medium ${
-                              selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
+                              selectedService.status === "completed" ||
+                              selectedService.status === "เสร็จสิ้น"
                                 ? "text-green-800"
                                 : "text-red-800"
                             }`}
@@ -515,7 +537,8 @@ const UserHistory = () => {
                         <div>
                           <p
                             className={`text-sm mb-1 ${
-                              selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
+                              selectedService.status === "completed" ||
+                              selectedService.status === "เสร็จสิ้น"
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
@@ -524,7 +547,8 @@ const UserHistory = () => {
                           </p>
                           <p
                             className={`font-medium ${
-                              selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
+                              selectedService.status === "completed" ||
+                              selectedService.status === "เสร็จสิ้น"
                                 ? "text-green-800"
                                 : "text-red-800"
                             }`}
@@ -617,7 +641,7 @@ const UserHistory = () => {
                             ราคารวม:
                           </span>
                           <span className="text-2xl font-bold text-green-600">
-                            {selectedService.estimatedPrice} 
+                            {selectedService.estimatedPrice} ฿
                           </span>
                         </div>
                       </div>
@@ -667,21 +691,26 @@ const UserHistory = () => {
                         <div className="flex items-center space-x-3">
                           <div
                             className={`w-2 h-2 rounded-full ${
-                              selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
+                              selectedService.status === "completed" ||
+                              selectedService.status === "เสร็จสิ้น"
                                 ? "bg-green-500"
                                 : "bg-red-500"
                             }`}
                           ></div>
                           <div>
                             <p className="text-sm font-medium text-gray-800">
-                              {selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
-                                ? "เสร็จสิ้นการให้บริการ"
-                                : "ยกเลิกการให้บริการ"}
+                              {selectedService.status === "completed" ||
+                              selectedService.status === "เสร็จสิ้น"
+                                ? "งานเสร็จสิ้น"
+                                : "งานถูกยกเลิก"}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {selectedService.status === "completed" || selectedService.status === "เสร็จสิ้น"
-                                ? selectedService.completedDate
-                                : selectedService.cancelledDate}
+                              {selectedService.status === "completed" ||
+                              selectedService.status === "เสร็จสิ้น"
+                                ? selectedService.completedDate ||
+                                  selectedService.serviceCategory
+                                : selectedService.cancelledDate ||
+                                  selectedService.serviceCategory}
                             </p>
                           </div>
                         </div>

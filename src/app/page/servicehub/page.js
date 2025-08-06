@@ -605,7 +605,7 @@ const ServiceHub = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
       <div className="relative bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16 px-4">
-        <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 bg-opacity-20"></div>
         <div className="relative max-w-7xl mx-auto text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">บริการของเรา</h1>
           <p className="text-lg md:text-xl mb-2">

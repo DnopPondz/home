@@ -9,7 +9,7 @@ import { ObjectId } from "mongodb";
 
 export async function GET(req, context) {
   try {
-    const userId = context?.params?.userId;
+    const { userId } = await context.params;
 
     if (!userId || !ObjectId.isValid(userId)) {
       return new Response(JSON.stringify({ message: "Invalid user ID" }), {
@@ -17,7 +17,6 @@ export async function GET(req, context) {
         headers: { 'Content-Type': 'application/json' }
       });
     }
-
 
     const client = await clientPromise;
     const db = client.db("myDB");
@@ -64,7 +63,6 @@ export async function GET(req, context) {
           technicianDetails: { $arrayElemAt: ["$technicianDetails", 0] }
         }
       }
-      // { $limit: 500 } // Optional: Limit if needed
     ], { allowDiskUse: true }).toArray();
 
     return new Response(JSON.stringify({

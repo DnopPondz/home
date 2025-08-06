@@ -51,7 +51,7 @@ useEffect(() => {
       console.log("📊 Parsed bookings:", bookings);
 
       // กรองเฉพาะ booking ที่ยังไม่ success
-      const filtered = bookings.filter((booking) => booking.status !== "success");
+      const filtered = bookings.filter((booking) => booking.status !== "completed" && booking.status !== "rejected")
       
       console.log("🔄 Filtered bookings:", filtered);
       setServices(filtered);
@@ -74,53 +74,47 @@ useEffect(() => {
 }, [user]);
 
 
-  const getBookingStats = () => {
-    const stats = { pending: 0, inProgress: 0, completed: 0, cancelled: 0 };
-    services.forEach((s) => {
-      switch (s.status) {
-        case "รอดำเนินการ": 
-        case "pending":
-          stats.pending++; 
-          break;
-        case "กำลังดำเนินการ": 
-        case "in_progress":
-        case "inProgress":
-          stats.inProgress++; 
-          break;
-        case "เสร็จสิ้น": 
-        case "completed":
-          stats.completed++; 
-          break;
-        case "ยกเลิก": 
-        case "cancelled":
-          stats.cancelled++; 
-          break;
-        default: 
-          stats.pending++; 
-          break;
-      }
-    });
-    return stats;
-  };
+  
+const getBookingStats = () => {
+  const stats = { pending: 0, accepted: 0 };
+  services.forEach((s) => {
+    switch (s.status) {
+      case "รอดำเนินการ":
+      case "pending":
+        stats.pending++;
+        break;
+      case "กำลังดำเนินการ":
+      case "in_progress":
+      case "inProgress":
+      case "เสร็จสิ้น":
+      case "accepted":
+        stats.accepted++;
+        break;
+      default:
+        // ไม่ต้องนับสถานะอื่น
+        break;
+    }
+  });
+  return stats;
+};
+
 
   const bookingStats = getBookingStats();
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "เสร็จสิ้น":
-      case "completed": 
-        return <CheckCircle className="w-4 h-4" />;
-      case "กำลังดำเนินการ":
-      case "in_progress":
-      case "inProgress": 
-        return <AlertCircle className="w-4 h-4" />;
-      case "ยกเลิก":
-      case "cancelled": 
-        return <XCircle className="w-4 h-4" />;
-      default: 
-        return <Clock className="w-4 h-4" />;
-    }
-  };
+  
+const getStatusIcon = (status) => {
+  switch (status) {
+    case "เสร็จสิ้น":
+    case "accepted":
+      return <CheckCircle className="w-4 h-4" />;
+    case "รอดำเนินการ":
+    case "pending":
+      return <Clock className="w-4 h-4" />;
+    default:
+      return null; // ไม่แสดง icon สำหรับสถานะอื่น
+  }
+};
+
 
   const getStatusColor = (status) => {
     // ✅ ปรับให้ใช้ status แทน color
@@ -217,7 +211,7 @@ useEffect(() => {
             <div className="container mx-auto px-4">
               <h1 className="text-3xl font-bold text-center">รายการคำสั่งซ่อมของคุณ</h1>
               <p className="text-center mt-2 text-blue-100">
-                ดูรายละเอียดการจองของ {getDisplayName()}
+                ดูรายละเอียดการจองของ 
               </p>
             </div>
           </div>
@@ -272,12 +266,12 @@ useEffect(() => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">กำลังดำเนินการ</span>
-                      <span className="font-semibold text-blue-600">{bookingStats.inProgress}</span>
+                      <span className="font-semibold text-blue-600">{bookingStats.accepted}</span>
                     </div>
-                    <div className="flex justify-between">
+                    {/* <div className="flex justify-between">
                       <span className="text-gray-600">เสร็จสิ้น</span>
                       <span className="font-semibold text-green-600">{bookingStats.completed}</span>
-                    </div>
+                    </div> */}
                     {bookingStats.cancelled > 0 && (
                       <div className="flex justify-between">
                         <span className="text-gray-600">ยกเลิก</span>
@@ -350,7 +344,7 @@ useEffect(() => {
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">ราคา</label>
-                            <p className="text-gray-800 font-semibold">{selectedService.estimatedPrice || selectedService.price || 0} ฿</p>
+                            <p className="text-gray-800 font-semibold">{selectedService.estimatedPrice || selectedService.price || 0} </p>
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">ลูกค้า</label>
@@ -430,7 +424,7 @@ useEffect(() => {
                           </div>
                           <div className="text-right ml-4">
                             <div className="text-sm text-gray-500 mb-1">ราคารวม:</div>
-                            <div className="text-2xl font-bold text-gray-800 mb-2">{s.estimatedPrice || s.price || 0} ฿</div>
+                            <div className="text-2xl font-bold text-gray-800 mb-2">{s.estimatedPrice || s.price || 0} </div>
                             <button
                               onClick={() => handleViewDetails(s)}
                               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"

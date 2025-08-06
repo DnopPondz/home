@@ -9,6 +9,11 @@ export default function AdminDashboard() {
   const [dashboardData, setDashboardData] = useState({
     totalServices: 0,
     totalBookings: 0,
+    completedBookings: 0,
+    successfulBookings: 0,
+    cancelledBookings: 0,
+    pendingBookings: 0,
+    acceptBookings: 0,
     totalUsers: 0,
     totalTechs: 0,
     totalCustomers: 0,
@@ -39,9 +44,43 @@ export default function AdminDashboard() {
       const techUsers = usersData.filter(user => user.role === 'tech') || [];
       const customerUsers = usersData.filter(user => user.role === 'user') || [];
 
+      // กรองข้อมูลการจองตามสถานะ
+      const activeBookings = bookingsData.filter(booking => 
+        booking.status !== "completed" && booking.status !== "rejected"
+      ) || [];
+      
+      const completedBookings = bookingsData.filter(booking => 
+        booking.status === "completed" || booking.status === "rejected"
+      ) || [];
+      
+      const successfulBookings = bookingsData.filter(booking => 
+        booking.status === "completed"
+      ) || [];
+      
+      const cancelledBookings = bookingsData.filter(booking => 
+        booking.status === "rejected"
+      ) || [];
+
+      const pendingBookings = bookingsData.filter(booking => 
+        booking.status === "pending"
+      ) || [];
+
+      const acceptBookings = bookingsData.filter(booking => 
+        booking.status === "accepted"
+      ) || [];
+
+     
+
+
+
       setDashboardData({
         totalServices: servicesData.length || 0,
-        totalBookings: bookingsData.length || 0,
+        totalBookings: activeBookings.length,
+        completedBookings: completedBookings.length,
+        successfulBookings: successfulBookings.length,
+        cancelledBookings: cancelledBookings.length,
+        acceptBookings: acceptBookings.length,
+        pendingBookings: pendingBookings.length,
         totalUsers: usersData.length || 0,
         totalTechs: techUsers.length,
         totalCustomers: customerUsers.length,
@@ -105,7 +144,7 @@ export default function AdminDashboard() {
             )}
 
             {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
               {/* Total Services */}
               <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
                 <div className="flex items-center">
@@ -123,7 +162,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Total Bookings */}
+              {/* Total Bookings (Active) */}
               <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
                 <div className="flex items-center">
                   <div className="p-3 rounded-full bg-green-100 text-green-600">
@@ -136,6 +175,31 @@ export default function AdminDashboard() {
                     <p className="text-2xl font-bold text-gray-900">
                       {dashboardData.loading ? '...' : dashboardData.totalBookings.toLocaleString()}
                     </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Completed Bookings */}
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+                <div className="flex items-center">
+                  <div className="p-3 rounded-full bg-teal-100 text-teal-600">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className=" ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">การจบงาน</h3>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {dashboardData.loading ? '...' : dashboardData.completedBookings.toLocaleString()}
+                    </p>
+                    {/* <div className=" space-x-4 mt-2 text-xs">
+                      <span className="text-green-600">
+                        สำเร็จ: {dashboardData.loading ? '...' : dashboardData.successfulBookings.toLocaleString()}
+                      </span>
+                      <span className="text-red-600">
+                        ยกเลิก: {dashboardData.loading ? '...' : dashboardData.cancelledBookings.toLocaleString()}
+                      </span>
+                    </div> */}
                   </div>
                 </div>
               </div>
@@ -196,14 +260,24 @@ export default function AdminDashboard() {
             {/* Additional Info */}
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">สรุปข้อมูลระบบ</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
                 <div className="p-4 bg-blue-50 rounded-lg">
                   <div className="text-blue-600 font-semibold">บริการ</div>
                   <div className="text-gray-700">มีบริการทั้งหมด {dashboardData.totalServices} รายการ</div>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
                   <div className="text-green-600 font-semibold">การจอง</div>
-                  <div className="text-gray-700">มีการจองทั้งหมด {dashboardData.totalBookings} ครั้ง</div>
+                  <div className="text-gray-700">การจองทั้งหมด {dashboardData.totalBookings} ครั้ง</div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    งานที่รอ {dashboardData.pendingBookings} | รับงานแล้ว {dashboardData.acceptBookings}
+                  </div>
+                </div>
+                <div className="p-4 bg-teal-50 rounded-lg">
+                  <div className="text-teal-600 font-semibold">การจบงาน</div>
+                  <div className="text-gray-700">จบงานแล้ว {dashboardData.completedBookings} ครั้ง</div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    สำเร็จ {dashboardData.successfulBookings} | ยกเลิก {dashboardData.cancelledBookings}
+                  </div>
                 </div>
                 <div className="p-4 bg-orange-50 rounded-lg">
                   <div className="text-orange-600 font-semibold">ช่างเทคนิค</div>
