@@ -60,6 +60,13 @@ export async function GET(req, context) {
           paymentMethod: 1,
           bookingDate: 1,
           bookingTime: 1,
+          date: 1,
+          time: 1,
+          address: 1,
+          rating: 1,
+          review: 1,
+          reviewDetail: 1,
+          reviewedAt: 1,
           serviceDetails: { $arrayElemAt: ["$serviceDetails", 0] },
           technicianDetails: { $arrayElemAt: ["$technicianDetails", 0] }
         }
