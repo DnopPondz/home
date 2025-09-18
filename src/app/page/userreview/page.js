@@ -31,7 +31,9 @@ const renderStaticStars = (rating) => {
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}
-          className={`w-4 h-4 ${star <= rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}`}
+          className={`w-4 h-4 ${
+            star <= rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
+          }`}
           fill={star <= rating ? "currentColor" : "none"}
         />
       ))}
@@ -71,18 +73,29 @@ const UserReviewPage = () => {
         const data = Array.isArray(response.data)
           ? response.data
           : Array.isArray(response.data?.data)
-            ? response.data.data
-            : [];
+          ? response.data.data
+          : [];
 
         const normalized = data.map((item) => {
-          const bookingId = normalizeId(item._id ?? item.id ?? item.bookingId);
+          const rawId = item._id ?? item.id ?? item.bookingId;
+          const idHex =
+            typeof rawId === "string"
+              ? rawId
+              : rawId && rawId.$oid
+              ? rawId.$oid
+              : rawId && rawId.toString
+              ? rawId.toString()
+              : "";
+
           const serviceId = normalizeId(item.serviceId);
           const userId = normalizeId(item.userId);
           const reviewText = item.review ?? item.reviewDetail?.comment ?? "";
           const ratingValue = item.rating ?? item.reviewDetail?.rating ?? 0;
+
           return {
             ...item,
-            bookingId,
+            _idHex: idHex, // <- เก็บไว้ชัดเจน
+            bookingId: idHex, // <- ให้ bookingId เท่ากับ _idHex ไปเลย
             serviceId,
             userId,
             rating: ratingValue,
@@ -115,7 +128,9 @@ const UserReviewPage = () => {
   };
 
   const selectedBooking = useMemo(
-    () => bookings.find((booking) => booking.bookingId === selectedBookingId) || null,
+    () =>
+      bookings.find((booking) => booking.bookingId === selectedBookingId) ||
+      null,
     [bookings, selectedBookingId]
   );
 
@@ -136,7 +151,7 @@ const UserReviewPage = () => {
 
     try {
       const payload = {
-        bookingId: selectedBooking.bookingId,
+        bookingId: selectedBooking._idHex || selectedBooking.bookingId, // ใช้ _idHex ก่อน
         userId: user.userId,
         rating,
         comment,
@@ -154,17 +169,23 @@ const UserReviewPage = () => {
 
       setBookings((prev) =>
         prev.map((booking) =>
-          booking.bookingId === selectedBooking.bookingId ? updatedBooking : booking
+          booking.bookingId === selectedBooking.bookingId
+            ? updatedBooking
+            : booking
         )
       );
 
-      setFeedback({ type: "success", message: response.data?.message || "ส่งรีวิวเรียบร้อย" });
+      setFeedback({
+        type: "success",
+        message: response.data?.message || "ส่งรีวิวเรียบร้อย",
+      });
     } catch (err) {
       console.error("Submit review error", err);
       setFeedback({
         type: "error",
         message:
-          err.response?.data?.message || "ไม่สามารถส่งรีวิวได้ กรุณาลองใหม่อีกครั้ง",
+          err.response?.data?.message ||
+          "ไม่สามารถส่งรีวิวได้ กรุณาลองใหม่อีกครั้ง",
       });
     } finally {
       setSubmitting(false);
@@ -197,16 +218,24 @@ const UserReviewPage = () => {
   );
 
   const getServiceTitle = (booking) =>
-    booking?.serviceDetails?.name || booking?.serviceName || booking?.title || "ไม่ระบุชื่อบริการ";
+    booking?.serviceDetails?.name ||
+    booking?.serviceName ||
+    booking?.title ||
+    "ไม่ระบุชื่อบริการ";
 
   const getSelectedOption = (booking) =>
-    booking?.selectedOption || booking?.serviceDetails?.serviceType || "ไม่ระบุรายการ";
+    booking?.selectedOption ||
+    booking?.serviceDetails?.serviceType ||
+    "ไม่ระบุรายการ";
 
   const getAddress = (booking) =>
     booking?.customerLocation || booking?.address || "ไม่พบข้อมูลสถานที่";
 
   const getBookingDate = (booking) =>
-    booking?.bookingDate || booking?.date || booking?.completedDate || "ไม่ระบุวันที่";
+    booking?.bookingDate ||
+    booking?.date ||
+    booking?.completedDate ||
+    "ไม่ระบุวันที่";
 
   const getBookingTime = (booking) =>
     booking?.bookingTime || booking?.time || booking?.serviceTime || "";
@@ -216,11 +245,23 @@ const UserReviewPage = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center bg-white p-8 rounded-xl shadow-lg">
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            <svg
+              className="w-8 h-8 text-blue-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">กรุณาเข้าสู่ระบบ</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            กรุณาเข้าสู่ระบบ
+          </h2>
           <p className="text-gray-600">คุณต้องเข้าสู่ระบบเพื่อให้คะแนนรีวิว</p>
         </div>
       </div>
@@ -232,7 +273,9 @@ const UserReviewPage = () => {
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white py-8">
         <div className="container mx-auto px-4">
           <h1 className="text-3xl font-bold text-center">รีวิวการใช้บริการ</h1>
-          <p className="text-center mt-2 text-blue-100">ให้คะแนนและความคิดเห็นกับบริการที่คุณได้รับ</p>
+          <p className="text-center mt-2 text-blue-100">
+            ให้คะแนนและความคิดเห็นกับบริการที่คุณได้รับ
+          </p>
         </div>
       </div>
 
@@ -240,14 +283,26 @@ const UserReviewPage = () => {
         <div className="flex flex-col lg:flex-row gap-8">
           <aside className="lg:w-1/4">
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">เมนูหลัก</h2>
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                เมนูหลัก
+              </h2>
               <nav className="space-y-2">
                 <Link
                   href="/page/userdata"
                   className="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
                 >
-                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  <svg
+                    className="w-5 h-5 mr-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
                   </svg>
                   ข้อมูลผู้ใช้งาน
                 </Link>
@@ -255,8 +310,18 @@ const UserReviewPage = () => {
                   href="/page/userlist"
                   className="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
                 >
-                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  <svg
+                    className="w-5 h-5 mr-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
                   </svg>
                   รายการคำสั่งซ่อม
                 </Link>
@@ -264,8 +329,18 @@ const UserReviewPage = () => {
                   href="/page/userhistory"
                   className="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors"
                 >
-                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="w-5 h-5 mr-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                   ประวัติการซ่อม
                 </Link>
@@ -273,8 +348,18 @@ const UserReviewPage = () => {
                   href="/page/userreview"
                   className="flex items-center px-4 py-3 text-blue-600 bg-blue-50 rounded-lg font-medium"
                 >
-                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 20.5l-3.09 1.626a1 1 0 01-1.451-1.054L8.273 17.5 5.2 14.878a1 1 0 01.554-1.706L9.5 12.5l1.382-3.372a1 1 0 011.836 0L14.1 12.5l3.746.672a1 1 0 01.554 1.706L15.327 17.5l.614 3.572a1 1 0 01-1.451 1.054L12 20.5z" />
+                  <svg
+                    className="w-5 h-5 mr-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 20.5l-3.09 1.626a1 1 0 01-1.451-1.054L8.273 17.5 5.2 14.878a1 1 0 01.554-1.706L9.5 12.5l1.382-3.372a1 1 0 011.836 0L14.1 12.5l3.746.672a1 1 0 01.554 1.706L15.327 17.5l.614 3.572a1 1 0 01-1.451 1.054L12 20.5z"
+                    />
                   </svg>
                   รีวิวบริการ
                 </Link>
@@ -282,7 +367,9 @@ const UserReviewPage = () => {
             </div>
 
             <div className="bg-white rounded-lg shadow-md p-6 mt-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">สรุปการรีวิว</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                สรุปการรีวิว
+              </h3>
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-600">รอการรีวิว</span>
@@ -292,11 +379,15 @@ const UserReviewPage = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">รีวิวแล้ว</span>
-                  <span className="font-semibold text-green-600">{completedCount}</span>
+                  <span className="font-semibold text-green-600">
+                    {completedCount}
+                  </span>
                 </div>
                 <div className="flex justify-between pt-2 border-t">
                   <span className="text-gray-600">งานทั้งหมด</span>
-                  <span className="font-semibold text-blue-600">{bookings.length}</span>
+                  <span className="font-semibold text-blue-600">
+                    {bookings.length}
+                  </span>
                 </div>
               </div>
             </div>
@@ -306,12 +397,16 @@ const UserReviewPage = () => {
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-800">งานที่เสร็จสิ้น</h2>
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    งานที่เสร็จสิ้น
+                  </h2>
                   <p className="text-sm text-gray-500">
                     เลือกงานที่ต้องการให้คะแนนและส่งความคิดเห็น
                   </p>
                 </div>
-                {loading && <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />}
+                {loading && (
+                  <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                )}
               </div>
 
               {error && (
@@ -326,7 +421,9 @@ const UserReviewPage = () => {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
                     ยังไม่มีงานที่เสร็จสิ้น
                   </h3>
-                  <p className="text-gray-500">เมื่อมีงานเสร็จสิ้น คุณสามารถกลับมาให้คะแนนได้ที่นี่</p>
+                  <p className="text-gray-500">
+                    เมื่อมีงานเสร็จสิ้น คุณสามารถกลับมาให้คะแนนได้ที่นี่
+                  </p>
                 </div>
               )}
 
@@ -337,7 +434,9 @@ const UserReviewPage = () => {
                     <div
                       key={booking.bookingId}
                       className={`border rounded-lg p-5 transition-shadow ${
-                        isSelected ? "border-blue-500 shadow-lg" : "border-gray-200 shadow-sm"
+                        isSelected
+                          ? "border-blue-500 shadow-lg"
+                          : "border-gray-200 shadow-sm"
                       }`}
                     >
                       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -348,11 +447,16 @@ const UserReviewPage = () => {
                           <p className="text-sm text-gray-500 mt-1">
                             รายการที่เลือก: {getSelectedOption(booking)}
                           </p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            comment: {booking.review || "-"}
+                          </p>
                           <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-gray-500">
                             <span className="flex items-center gap-1">
                               <Calendar className="w-4 h-4" />
                               {getBookingDate(booking)}
-                              {getBookingTime(booking) ? ` เวลา ${getBookingTime(booking)}` : ""}
+                              {getBookingTime(booking)
+                                ? ` เวลา ${getBookingTime(booking)}`
+                                : ""}
                             </span>
                             <span className="flex items-center gap-1">
                               <MapPin className="w-4 h-4" />
@@ -365,7 +469,12 @@ const UserReviewPage = () => {
                             <div className="inline-block">
                               {renderStaticStars(booking.rating)}
                               <p className="text-xs text-gray-500 mt-1">
-                                รีวิวล่าสุด {booking.reviewedAt ? new Date(booking.reviewedAt).toLocaleDateString() : "-"}
+                                รีวิวล่าสุด{" "}
+                                {booking.reviewedAt
+                                  ? new Date(
+                                      booking.reviewedAt
+                                    ).toLocaleDateString()
+                                  : "-"}
                               </p>
                             </div>
                           ) : (
@@ -377,7 +486,9 @@ const UserReviewPage = () => {
                           <button
                             onClick={() => handleSelectBooking(booking)}
                             className={`px-4 py-2 rounded-lg font-medium transition-colors w-full ${
-                              isSelected ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              isSelected
+                                ? "bg-blue-600 text-white"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                             }`}
                           >
                             {booking.rating ? "แก้ไขรีวิว" : "ให้คะแนน"}
@@ -399,7 +510,9 @@ const UserReviewPage = () => {
                     </h3>
                     <p className="text-sm text-gray-500">
                       {getBookingDate(selectedBooking)}
-                      {getBookingTime(selectedBooking) ? ` เวลา ${getBookingTime(selectedBooking)}` : ""}
+                      {getBookingTime(selectedBooking)
+                        ? ` เวลา ${getBookingTime(selectedBooking)}`
+                        : ""}
                     </p>
                   </div>
                   <CheckCircle2 className="w-8 h-8 text-green-500" />
@@ -426,7 +539,10 @@ const UserReviewPage = () => {
                   </div>
 
                   <div>
-                    <label htmlFor="comment" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label
+                      htmlFor="comment"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
                       ความคิดเห็นเพิ่มเติม
                     </label>
                     <textarea
@@ -457,7 +573,9 @@ const UserReviewPage = () => {
                       disabled={submitting}
                       className="px-5 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
                     >
-                      {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                      {submitting && (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      )}
                       บันทึกรีวิว
                     </button>
                   </div>
