@@ -3,6 +3,46 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Eye, X, Star } from 'lucide-react';
 
+const normalizeId = (value) => {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object') {
+        if (value.$oid) return value.$oid;
+        if (typeof value.toString === 'function') return value.toString();
+    }
+    return String(value);
+};
+
+const buildCustomerName = (userDetails = {}) => {
+    const firstName = userDetails.firstName || '';
+    const lastName = userDetails.lastName || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+    return fullName || userDetails.name || userDetails.email || '-';
+};
+
+const mapBookingToHistoryJob = (booking) => {
+    const rating = booking?.rating ?? booking?.reviewDetail?.rating ?? 0;
+    const reviewComment = booking?.review ?? booking?.reviewDetail?.comment ?? '';
+    const priceValue = booking?.estimatedPrice ?? booking?.serviceDetails?.price ?? booking?.price ?? null;
+    const parsedPrice = typeof priceValue === 'number' ? priceValue : Number(priceValue) || 0;
+
+    return {
+        _id: normalizeId(booking?._id),
+        bookingId: normalizeId(booking?._id),
+        customerName: booking?.customerName || buildCustomerName(booking?.userDetails),
+        appointmentDate: booking?.bookingDate || booking?.completedDate || booking?.date || booking?.createdAt,
+        serviceType: booking?.serviceDetails?.serviceType || booking?.selectedOption || booking?.serviceName || '-',
+        price: parsedPrice,
+        status: booking?.status || 'completed',
+        address: booking?.customerLocation || booking?.address || booking?.serviceDetails?.location || '-',
+        phoneNumber: booking?.userDetails?.phone || booking?.phoneNumber || '-',
+        notes: booking?.notes || booking?.serviceDetails?.description || '',
+        rating: rating ? Number(rating) : 0,
+        feedback: reviewComment,
+        reviewedAt: booking?.reviewedAt || booking?.reviewDetail?.updatedAt || null,
+    };
+};
+
 const History = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('ทั้งหมด');
@@ -12,24 +52,49 @@ const History = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
- 
+    useEffect(() => {
+        const fetchHistoryJobs = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+
+                const res = await fetch('/api/reviews');
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data?.message || 'ไม่สามารถดึงข้อมูลรีวิวได้');
+                }
+
+                const bookings = Array.isArray(data?.data) ? data.data : [];
+                const mapped = bookings.map(mapBookingToHistoryJob);
+                setHistoryJobs(mapped);
+            } catch (err) {
+                console.error('fetchHistoryJobs error:', err);
+                setError(err.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchHistoryJobs();
+    }, []);
+
     const filteredJobs = historyJobs.filter(job => {
         const matchesSearch = job.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             job._id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             job.serviceType?.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        // Since we're only fetching accepted jobs, all jobs are "completed"
+
         const matchesFilter = filterStatus === 'ทั้งหมด' || filterStatus === 'เสร็จแล้ว';
-        
+
         return matchesSearch && matchesFilter;
     });
 
     const getStatusText = (status) => {
-        return status === 'accepted' ? 'เสร็จแล้ว' : 'ปฏิเสธ';
+        return status === 'accepted' ? 'เสร็จแล้ว' : 'จบงาน';
     };
 
     const getStatusColor = (status) => {
-        return status === 'accepted' ? 'text-green-600' : 'text-red-600';
+        return status === 'accepted' ? 'text-green-600' : 'text-green-600';
     };
 
     const handleViewJob = (job) => {
@@ -70,7 +135,9 @@ const History = () => {
     // Format price function
     const formatPrice = (price) => {
         if (!price) return '-';
-        return `${price.toLocaleString()} ฿`;
+        const numeric = typeof price === 'number' ? price : Number(price);
+        if (!Number.isFinite(numeric)) return '-';
+        return `${numeric.toLocaleString()} ฿`;
     };
 
     if (loading) {
@@ -104,7 +171,7 @@ const History = () => {
             {/* Header */}
             <div className="bg-white shadow-sm border-b">
                 <div className="max-w-6xl mx-auto px-4 py-4">
-                    <h1 className="text-xl font-semibold text-gray-800">ประวัติการทำงาน</h1>
+                    <h1 className="text-xl font-semibold text-gray-800">Customer Review</h1>
                 </div>
             </div>
 
@@ -141,8 +208,9 @@ const History = () => {
                                     <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">วันเวลาที่ดำเนินการ</th>
                                     <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">รหัสงาน</th>
                                     <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">ประเภทงาน</th>
-                                    <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">ราคารวม</th>
+                                    {/* <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">ราคารวม</th> */}
                                     <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">สถานะ</th>
+                                    <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">รีวิว</th>
                                     <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Action</th>
                                 </tr>
                             </thead>
@@ -153,12 +221,24 @@ const History = () => {
                                         <td className="px-6 py-4 text-sm text-gray-600">{formatDate(job.appointmentDate)}</td>
                                         <td className="px-6 py-4 text-sm text-gray-600">{job._id}</td>
                                         <td className="px-6 py-4 text-sm text-gray-600">{job.serviceType || '-'}</td>
-                                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{formatPrice(job.price)}</td>
+                                        {/* <td className="px-6 py-4 text-sm font-medium text-gray-900">{formatPrice(job.estimatedPrice)}</td> */}
                                         <td className={`px-6 py-4 text-sm font-medium ${getStatusColor(job.status)}`}>
                                             {getStatusText(job.status)}
                                         </td>
+                                        <td className="px-6 py-4 text-sm text-gray-600">
+                                            {job.rating ? (
+                                                <div className="flex items-center space-x-2">
+                                                    <div className="flex items-center space-x-1">
+                                                        {renderStars(Math.round(job.rating))}
+                                                    </div>
+                                                    <span className="text-xs text-gray-500">{job.rating.toFixed(1)}/5</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-400">ยังไม่มีรีวิว</span>
+                                            )}
+                                        </td>
                                         <td className="px-6 py-4 text-sm">
-                                            <button 
+                                            <button
                                                 onClick={() => handleViewJob(job)}
                                                 className="text-blue-600 hover:text-blue-800 flex items-center"
                                             >
@@ -193,7 +273,9 @@ const History = () => {
                     </div>
                     <div className="bg-white rounded-lg shadow-sm p-6 text-center">
                         <div className="text-2xl font-bold text-gray-800">
-                            {historyJobs.reduce((total, job) => total + (job.price || 0), 0).toLocaleString()}
+                            {historyJobs
+                                .reduce((total, job) => total + (Number(job.price) || 0), 0)
+                                .toLocaleString()}
                         </div>
                         <div className="text-sm text-gray-600">รายได้รวม (฿)</div>
                     </div>
@@ -211,7 +293,7 @@ const History = () => {
 
             {/* Job Detail Popup */}
             {showDetailPopup && selectedJob && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 relative max-h-[80vh] overflow-y-auto">
                         <button 
                             onClick={closeDetailPopup}
@@ -266,24 +348,30 @@ const History = () => {
                             </div>
                         </div>
                         
-                        {/* Rating and Feedback Section */}
-                        {/* <div className="border-t pt-4">
-                            <div className="mb-3">
-                                <span className="text-sm text-gray-600">คะแนนความพึงพอใจ:</span>
-                                <div className="flex items-center mt-1">
-                                    {renderStars(selectedJob.rating)}
-                                    <span className="ml-2 text-sm text-gray-600">({selectedJob.rating || 0}/5)</span>
-                                </div>
-                            </div>
-                            {selectedJob.feedback && (
+                        {(selectedJob.rating || selectedJob.feedback) && (
+                            <div className="border-t pt-4 mt-4 space-y-3">
                                 <div>
-                                    <span className="text-sm text-gray-600">ความคิดเห็นจากลูกค้า:</span>
-                                    <p className="text-sm text-gray-800 mt-1 bg-gray-50 p-2 rounded">
-                                        {selectedJob.feedback}
-                                    </p>
+                                    <span className="text-sm text-gray-600">คะแนนความพึงพอใจ:</span>
+                                    <div className="flex items-center mt-1">
+                                        {renderStars(Math.round(selectedJob.rating || 0))}
+                                        <span className="ml-2 text-sm text-gray-600">({(selectedJob.rating || 0).toFixed(1)}/5)</span>
+                                    </div>
                                 </div>
-                            )}
-                        </div> */}
+                                {selectedJob.feedback && (
+                                    <div>
+                                        <span className="text-sm text-gray-600">ความคิดเห็นจากลูกค้า:</span>
+                                        <p className="text-sm text-gray-800 mt-1 bg-gray-50 p-2 rounded">
+                                            {selectedJob.feedback}
+                                        </p>
+                                    </div>
+                                )}
+                                {selectedJob.reviewedAt && (
+                                    <div className="text-xs text-gray-500">
+                                        อัปเดตล่าสุด: {formatDate(selectedJob.reviewedAt)}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

@@ -174,12 +174,14 @@ const Service = () => {
                   <Clock className="w-4 h-4 mr-1" />
                   {formatDate(job.bookingDate)} {formatTime(job.bookingTime)}
                 </div>
+                
               </div>
 
               <div className="mt-4 text-sm text-gray-700">
                 <div>ลูกค้า: {job.customerName}</div>
                 <div>เบอร์: {job.customerPhone}</div>
                 <div>ที่อยู่: {job.customerLocation}</div>
+                <div>ราคา: {job.estimatedPrice}</div>
               </div>
 
               <div className="mt-4 flex space-x-2">

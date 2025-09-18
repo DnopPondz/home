@@ -16,6 +16,7 @@ import {
   ChevronsRight,
   Info,
   Clipboard,
+  Star,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -43,15 +44,16 @@ const AdminSidebar = () => {
       href: "/page/admin/service",
       roles: ["admin", "tech"],
     },
-    // {
-    //   icon: BarChart3,
-    //   label: "Service History",
-    //   href: "/page/admin/history",
-    //   roles: ["admin", "tech"],
-    // },
+    {
+      // icon: BarChart3,
+      icon: Star,
+      label: "Customer Review",
+      href: "/page/admin/history",
+      roles: ["admin", "tech"],
+    },
     {
       icon: Users,
-      label: "USERS",
+      label: "User Management",
       href: "/page/admin/manage",
       roles: ["admin"],
     },
