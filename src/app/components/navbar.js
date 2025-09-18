@@ -118,9 +118,12 @@ const Navbar = () => {
                           </div>
                           <div>
                             <p className="font-medium text-sm text-gray-800">
-                              {user.name || `${user.firstName} ${user.lastName}`}
+                              {user.name ||
+                                `${user.firstName} ${user.lastName}`}
                             </p>
-                            <p className="text-xs text-gray-500">{user.email}</p>
+                            <p className="text-xs text-gray-500">
+                              {user.email}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -153,7 +156,16 @@ const Navbar = () => {
                         >
                           ประวัติการซ่อม
                         </Link>
-
+                        <Link
+                          href="/page/userreview"
+                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                          onClick={() => {
+                            setShowUserMenu(false);
+                          }}
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          รีวิวบริการ
+                        </Link>
                         <button
                           className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                           onClick={() => {
