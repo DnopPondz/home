@@ -32,7 +32,44 @@ const Service = () => {
     }
   };
 
-  const updateBookingStatus = async (bookingId, newStatus) => {
+  const normalizeId = (value) => {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "object") {
+      if (value.$oid) return value.$oid;
+      if (value.toString) return value.toString();
+    }
+    return String(value);
+  };
+
+  const notifyStatusChange = async (job, newStatus) => {
+    try {
+      const userId = normalizeId(job.userId || job.customerId);
+      const bookingId = normalizeId(job._id);
+
+      if (!userId || !bookingId) {
+        return;
+      }
+
+      const statusText = {
+        pending: "รอดำเนินการ",
+        accepted: "กำลังดำเนินการ",
+        completed: "เสร็จสิ้น",
+        rejected: "ถูกปฏิเสธ",
+      }[newStatus] || newStatus;
+
+      await axios.post("/api/notifications", {
+        userId,
+        bookingId,
+        status: newStatus,
+        message: `สถานะงาน "${job.serviceName || job.serviceCategory || "งานของคุณ"}" ถูกอัปเดตเป็น ${statusText}`,
+      });
+    } catch (err) {
+      console.error("Error sending notification:", err);
+    }
+  };
+
+  const updateBookingStatus = async (job, newStatus) => {
     try {
       if (!technicianId) {
         alert("ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่");
@@ -42,10 +79,18 @@ const Service = () => {
       const payload = { status: newStatus };
       if (newStatus === "accepted") payload.assignedTo = technicianId;
 
+      const bookingId = normalizeId(job._id);
+
+      if (!bookingId) {
+        alert("ไม่พบรหัสงาน");
+        return;
+      }
+
       // แก้ไข: ใส่ backtick และ quotes ให้ถูกต้อง
       const response = await axios.patch(`/api/bookings/${bookingId}`, payload);
       console.log("Update response:", response.data); // เพิ่ม logging
-      
+
+      await notifyStatusChange(job, newStatus);
       await fetchBookings();
     } catch (err) {
       console.error("Error updating booking status:", err);
@@ -87,7 +132,7 @@ const Service = () => {
       reject: "rejected",
       complete: "completed",
     };
-    await updateBookingStatus(job._id, statusMap[type]);
+    await updateBookingStatus(job, statusMap[type]);
     setShowPopup(false);
     setPopupData(null);
   };
