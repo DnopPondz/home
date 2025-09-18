@@ -129,3 +129,34 @@ export async function PATCH(request, { params }) {
     );
   }
 }
+
+export async function DELETE(_request, { params }) {
+  try {
+    const { userId } = params;
+    const userFilter = buildUserFilter(userId);
+
+    if (!userFilter) {
+      return NextResponse.json(
+        { message: "รหัสผู้ใช้ไม่ถูกต้อง" },
+        { status: 400 }
+      );
+    }
+
+    const client = await clientPromise;
+    const db = client.db("myDB");
+    const collection = db.collection("notifications");
+
+    const result = await collection.deleteMany(userFilter);
+
+    return NextResponse.json({
+      message: "ลบการแจ้งเตือนเรียบร้อยแล้ว",
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Delete notifications error:", error);
+    return NextResponse.json(
+      { message: "ไม่สามารถลบการแจ้งเตือนได้" },
+      { status: 500 }
+    );
+  }
+}

@@ -10,9 +10,16 @@ const Navbar = () => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notificationsError, setNotificationsError] = useState(null);
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
+  const [isClearingNotifications, setIsClearingNotifications] = useState(false);
 
   const unreadCount = useMemo(
     () => notifications.filter((notification) => !notification.read).length,
+    [notifications]
+  );
+
+  const latestNotifications = useMemo(
+    () => notifications.slice(0, 5),
     [notifications]
   );
 
@@ -124,15 +131,52 @@ const Navbar = () => {
     const nextState = !showNotifications;
     setShowNotifications(nextState);
     setShowUserMenu(false);
+    setShowAllNotifications(false);
 
     if (nextState) {
       await markNotificationsAsRead();
     }
   };
 
+  const openAllNotifications = async () => {
+    setShowAllNotifications(true);
+    setShowNotifications(false);
+    setShowUserMenu(false);
+    await markNotificationsAsRead();
+  };
+
+  const closeAllNotifications = () => {
+    setShowAllNotifications(false);
+  };
+
+  const handleClearNotifications = async () => {
+    if (!user?.userId || notifications.length === 0) return;
+    setIsClearingNotifications(true);
+    setNotificationsError(null);
+    try {
+      const res = await fetch(`/api/notifications/${user.userId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        throw new Error("ไม่สามารถล้างการแจ้งเตือนได้");
+      }
+
+      setNotifications([]);
+      setShowNotifications(false);
+      setShowAllNotifications(false);
+    } catch (error) {
+      console.error("Failed to clear notifications:", error);
+      setNotificationsError(error.message || "ไม่สามารถล้างการแจ้งเตือนได้");
+    } finally {
+      setIsClearingNotifications(false);
+    }
+  };
+
   const toggleUserMenu = () => {
     setShowUserMenu(!showUserMenu);
     setShowNotifications(false);
+    setShowAllNotifications(false);
   };
 
   const handleLogout = async () => {
@@ -234,9 +278,6 @@ const Navbar = () => {
                         <Link
                           href="/page/userlist"
                           className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                          onClick={() => {
-                            setShowUserMenu(false);
-                          }}
                           onClick={() => setShowUserMenu(false)}
                         >
                           รายการคำสั่งซ่อม
@@ -244,9 +285,6 @@ const Navbar = () => {
                         <Link
                           href="/page/userhistory"
                           className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                          onClick={() => {
-                            setShowUserMenu(false);
-                          }}
                           onClick={() => setShowUserMenu(false)}
                         >
                           ประวัติการซ่อม
@@ -254,9 +292,6 @@ const Navbar = () => {
                         <Link
                           href="/page/userreview"
                           className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                          onClick={() => {
-                            setShowUserMenu(false);
-                          }}
                           onClick={() => setShowUserMenu(false)}
                         >
                           รีวิวบริการ
@@ -304,10 +339,17 @@ const Navbar = () => {
 
                   {showNotifications && (
                     <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50 transform translate-x-0">
-                      <div className="p-3 border-b border-gray-200">
+                      <div className="flex items-center justify-between p-3 border-b border-gray-200">
                         <h3 className="font-semibold text-gray-800">
                           การแจ้งเตือน
                         </h3>
+                        <button
+                          onClick={handleClearNotifications}
+                          disabled={notifications.length === 0 || isClearingNotifications}
+                          className="text-xs text-red-500 hover:text-red-600 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        >
+                          ล้างทั้งหมด
+                        </button>
                       </div>
                       <div className="max-h-64 overflow-y-auto">
                         {notificationsError && (
@@ -316,8 +358,8 @@ const Navbar = () => {
                           </div>
                         )}
                         {!notificationsError ? (
-                          notifications.length > 0 ? (
-                            notifications.map((notification) => (
+                          latestNotifications.length > 0 ? (
+                            latestNotifications.map((notification) => (
                               <div
                                 key={notification._id || notification.id}
                                 className={`p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
@@ -343,7 +385,10 @@ const Navbar = () => {
                         ) : null}
                       </div>
                       <div className="p-3 border-t border-gray-200 text-center">
-                        <button className="text-sm text-blue-600 hover:text-blue-800">
+                        <button
+                          className="text-sm text-blue-600 hover:text-blue-800"
+                          onClick={openAllNotifications}
+                        >
                           ดูทั้งหมด
                         </button>
                       </div>
@@ -363,8 +408,75 @@ const Navbar = () => {
           onClick={() => {
             setShowNotifications(false);
             setShowUserMenu(false);
+            setShowAllNotifications(false);
           }}
         ></div>
+      )}
+
+      {showAllNotifications && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          onClick={closeAllNotifications}
+        >
+          <div
+            className="w-full max-w-xl bg-white rounded-xl shadow-2xl overflow-hidden"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800">
+                การแจ้งเตือนทั้งหมด
+              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleClearNotifications}
+                  disabled={notifications.length === 0 || isClearingNotifications}
+                  className="text-sm text-red-500 hover:text-red-600 disabled:text-gray-400 disabled:cursor-not-allowed"
+                >
+                  ล้างทั้งหมด
+                </button>
+                <button
+                  onClick={closeAllNotifications}
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                >
+                  ปิด
+                </button>
+              </div>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto">
+              {notificationsError && (
+                <div className="p-4 text-center text-red-500 text-sm">
+                  {notificationsError}
+                </div>
+              )}
+              {!notificationsError ? (
+                notifications.length > 0 ? (
+                  notifications.map((notification) => (
+                    <div
+                      key={notification._id || notification.id}
+                      className={`p-4 border-b border-gray-100 ${
+                        !notification.read ? "bg-blue-50" : ""
+                      }`}
+                    >
+                      <p className="text-sm text-gray-800 mb-1">
+                        {notification.message || "มีการอัปเดตใหม่"}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatTimeAgo(notification.createdAt)}
+                      </p>
+                      {!notification.read && (
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-1"></div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-6 text-center text-gray-500">
+                    ไม่มีการแจ้งเตือน
+                  </div>
+                )
+              ) : null}
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
