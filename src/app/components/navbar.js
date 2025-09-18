@@ -374,19 +374,22 @@ const Navbar = () => {
                               >
                                 <p className="text-sm text-gray-800 mb-1">
                                   {notification.message || "มีการอัปเดตใหม่"}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {formatTimeAgo(notification.createdAt)}
-                                </p>
-                                {notification.status === "completed" && (
+                                  <span className=" pl-2">
+                                    
+                                    {notification.status === "completed" && (
                                   <Link
                                     href="/page/userreview"
                                     className="inline-block mt-2 text-xs font-semibold text-blue-600 hover:text-blue-800"
                                     onClick={handleReviewNavigation}
                                   >
-                                    Review
+                                    คลิกเพื่อรีวิว 
                                   </Link>
-                                )}
+                                )}</span>
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {formatTimeAgo(notification.createdAt)}
+                                </p>
+                                
                                 {!notification.read && (
                                   <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
                                 )}
