@@ -15,8 +15,25 @@ const UserData = () => {
     email: "",
     phone: "",
     location: "",
-    avatar: null
+    imageUrl: "",
+    avatar: null,
   });
+
+  const normalizeId = (value) => {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "object") {
+      if (value.$oid) return value.$oid;
+      if (value.toString) return value.toString();
+    }
+    return String(value);
+  };
+
+  const isFileLike = (value) => {
+    if (typeof File !== "undefined" && value instanceof File) return true;
+    if (typeof Blob !== "undefined" && value instanceof Blob) return true;
+    return false;
+  };
 
   // แยกชื่อจาก name field (ถ้ามี)
   const parseFullName = (fullName) => {
@@ -44,6 +61,7 @@ const UserData = () => {
         phone: user.phone || "",
         location: user.location || "",
         imageUrl: user.imageUrl || user.avatar || "",
+        avatar: null,
       });
     }
   }, [user]);
@@ -72,17 +90,27 @@ const UserData = () => {
     setMessage("");
 
     try {
+      const userId = normalizeId(user?.userId || user?._id);
+      if (!userId) {
+        setMessage("ไม่พบรหัสผู้ใช้งาน");
+        setLoading(false);
+        return;
+      }
+
       const formDataToSend = new FormData();
 
       Object.keys(formData).forEach((key) => {
-        if (key === "avatar" && formData[key] instanceof File) {
-          formDataToSend.append("avatar", formData[key]);
-        } else if (key !== "avatar") {
-          formDataToSend.append(key, formData[key]);
+        if (key === "avatar") {
+          const avatarFile = formData[key];
+          if (isFileLike(avatarFile)) {
+            formDataToSend.append("avatar", avatarFile);
+          }
+        } else {
+          formDataToSend.append(key, formData[key] ?? "");
         }
       });
 
-      const res = await fetch("/api/user/update", {
+      const res = await fetch(`/api/user/${userId}`, {
         method: "PUT",
         body: formDataToSend,
       });
@@ -92,9 +120,14 @@ const UserData = () => {
       if (res.ok) {
         setMessage("อัปเดตข้อมูลสำเร็จ");
         setIsEditing(false);
-        if (updateUser) {
+        if (data?.user && updateUser) {
           updateUser(data.user);
         }
+        setFormData((prev) => ({
+          ...prev,
+          avatar: null,
+          imageUrl: data?.user?.imageUrl || prev.imageUrl,
+        }));
       } else {
         setMessage(data.message || "เกิดข้อผิดพลาดในการอัปเดตข้อมูล");
       }
@@ -118,7 +151,8 @@ const UserData = () => {
         email: user.email || "",
         phone: user.phone || "",
         location: user.location || "",
-        avatar: null
+        imageUrl: user.imageUrl || user.avatar || "",
+        avatar: null,
       });
     }
     setIsEditing(false);
