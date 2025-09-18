@@ -368,12 +368,15 @@ const Navbar = () => {
                             latestNotifications.map((notification) => (
                               <div
                                 key={notification._id || notification.id}
+
                                 className={`p-3 border-b border-gray-100 hover:bg-gray-50 ${
+
                                   !notification.read ? "bg-blue-50" : ""
                                 }`}
                               >
                                 <p className="text-sm text-gray-800 mb-1">
                                   {notification.message || "มีการอัปเดตใหม่"}
+
                                   <span className=" pl-2">
                                     
                                     {notification.status === "completed" && (
@@ -385,10 +388,12 @@ const Navbar = () => {
                                     คลิกเพื่อรีวิว 
                                   </Link>
                                 )}</span>
+
                                 </p>
                                 <p className="text-xs text-gray-500">
                                   {formatTimeAgo(notification.createdAt)}
                                 </p>
+
                                 
                                 {!notification.read && (
                                   <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
@@ -434,6 +439,7 @@ const Navbar = () => {
       {showAllNotifications && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+
           onClick={closeAllNotifications}
         >
           <div
@@ -481,6 +487,7 @@ const Navbar = () => {
                       <p className="text-xs text-gray-500">
                         {formatTimeAgo(notification.createdAt)}
                       </p>
+
                       {notification.status === "completed" && (
                         <Link
                           href="/page/userreview"
@@ -492,6 +499,7 @@ const Navbar = () => {
                       )}
                       {!notification.read && (
                         <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+
                       )}
                     </div>
                   ))
