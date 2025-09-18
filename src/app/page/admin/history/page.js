@@ -90,11 +90,11 @@ const History = () => {
     });
 
     const getStatusText = (status) => {
-        return status === 'accepted' ? 'เสร็จแล้ว' : 'ปฏิเสธ';
+        return status === 'accepted' ? 'เสร็จแล้ว' : 'จบงาน';
     };
 
     const getStatusColor = (status) => {
-        return status === 'accepted' ? 'text-green-600' : 'text-red-600';
+        return status === 'accepted' ? 'text-green-600' : 'text-green-600';
     };
 
     const handleViewJob = (job) => {
@@ -171,7 +171,7 @@ const History = () => {
             {/* Header */}
             <div className="bg-white shadow-sm border-b">
                 <div className="max-w-6xl mx-auto px-4 py-4">
-                    <h1 className="text-xl font-semibold text-gray-800">ประวัติการทำงาน</h1>
+                    <h1 className="text-xl font-semibold text-gray-800">Customer Review</h1>
                 </div>
             </div>
 
@@ -208,7 +208,7 @@ const History = () => {
                                     <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">วันเวลาที่ดำเนินการ</th>
                                     <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">รหัสงาน</th>
                                     <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">ประเภทงาน</th>
-                                    <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">ราคารวม</th>
+                                    {/* <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">ราคารวม</th> */}
                                     <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">สถานะ</th>
                                     <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">รีวิว</th>
                                     <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Action</th>
@@ -221,7 +221,7 @@ const History = () => {
                                         <td className="px-6 py-4 text-sm text-gray-600">{formatDate(job.appointmentDate)}</td>
                                         <td className="px-6 py-4 text-sm text-gray-600">{job._id}</td>
                                         <td className="px-6 py-4 text-sm text-gray-600">{job.serviceType || '-'}</td>
-                                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{formatPrice(job.price)}</td>
+                                        {/* <td className="px-6 py-4 text-sm font-medium text-gray-900">{formatPrice(job.estimatedPrice)}</td> */}
                                         <td className={`px-6 py-4 text-sm font-medium ${getStatusColor(job.status)}`}>
                                             {getStatusText(job.status)}
                                         </td>
@@ -293,7 +293,7 @@ const History = () => {
 
             {/* Job Detail Popup */}
             {showDetailPopup && selectedJob && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 relative max-h-[80vh] overflow-y-auto">
                         <button 
                             onClick={closeDetailPopup}
