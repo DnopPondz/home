@@ -1,303 +1,362 @@
-"use client"
+"use client";
 
-// pages/admin/dashboard.js หรือ app/admin/dashboard/page.js
-import { useState, useEffect } from 'react';
-import axios from 'axios';
-import NavigationSwitcher from '../../../components/NavigationSwitcher';
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import axios from "axios";
+import {
+  RefreshCw,
+  Layers3,
+  ClipboardList,
+  Clock3,
+  ShieldCheck,
+  CheckCircle2,
+  CircleX,
+  Users,
+  UserCog,
+} from "lucide-react";
+
+const initialTotals = {
+  totalServices: 0,
+  totalBookings: 0,
+  completedBookings: 0,
+  successfulBookings: 0,
+  cancelledBookings: 0,
+  pendingBookings: 0,
+  acceptBookings: 0,
+  totalUsers: 0,
+  totalTechs: 0,
+  totalCustomers: 0,
+};
+
+const metricConfig = [
+  {
+    key: "totalServices",
+    label: "บริการทั้งหมด",
+    icon: Layers3,
+    iconStyles: "bg-blue-100 text-blue-600",
+  },
+  {
+    key: "totalBookings",
+    label: "งานที่กำลังดำเนินการ",
+    icon: ClipboardList,
+    iconStyles: "bg-indigo-100 text-indigo-600",
+  },
+  {
+    key: "pendingBookings",
+    label: "รอดำเนินการ",
+    icon: Clock3,
+    iconStyles: "bg-amber-100 text-amber-600",
+  },
+  {
+    key: "acceptBookings",
+    label: "รับงานแล้ว",
+    icon: ShieldCheck,
+    iconStyles: "bg-sky-100 text-sky-600",
+  },
+  {
+    key: "completedBookings",
+    label: "งานเสร็จสิ้น",
+    icon: CheckCircle2,
+    iconStyles: "bg-teal-100 text-teal-600",
+  },
+  {
+    key: "cancelledBookings",
+    label: "งานถูกยกเลิก",
+    icon: CircleX,
+    iconStyles: "bg-rose-100 text-rose-600",
+  },
+];
+
+const thaiNumberFormatter = new Intl.NumberFormat("th-TH");
+const thaiDateTimeFormatter = new Intl.DateTimeFormat("th-TH", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+function DashboardMetricCard({ icon: Icon, label, value, iconStyles }) {
+  return (
+    <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-slate-500">{label}</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-900">{value}</p>
+        </div>
+        <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${iconStyles}`}>
+          <Icon className="h-6 w-6" aria-hidden="true" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
-  const [dashboardData, setDashboardData] = useState({
-    totalServices: 0,
-    totalBookings: 0,
-    completedBookings: 0,
-    successfulBookings: 0,
-    cancelledBookings: 0,
-    pendingBookings: 0,
-    acceptBookings: 0,
-    totalUsers: 0,
-    totalTechs: 0,
-    totalCustomers: 0,
+  const [dashboardState, setDashboardState] = useState({
+    totals: initialTotals,
     loading: true,
-    error: null
+    error: null,
+    lastUpdated: null,
   });
+  const isMountedRef = useRef(false);
 
-  const [lastUpdated, setLastUpdated] = useState('');
+  const fetchDashboardData = useCallback(async () => {
+    setDashboardState((prev) => ({ ...prev, loading: true, error: null }));
 
-  // ฟังก์ชันดึงข้อมูลจาก API
-  const fetchDashboardData = async () => {
     try {
-      setDashboardData(prev => ({ ...prev, loading: true, error: null }));
-
-      // เรียก API พร้อมกัน
       const [servicesRes, bookingsRes, usersRes] = await Promise.all([
-        axios.get('/api/services'),
-        axios.get('/api/bookings'),
-        axios.get('/api/users')
+        axios.get("/api/services"),
+        axios.get("/api/bookings"),
+        axios.get("/api/users"),
       ]);
 
-      // ดึงข้อมูลจาก response
-      const servicesData = servicesRes.data;
-      const bookingsData = bookingsRes.data;
-      const usersData = usersRes.data;
+      const servicesData = servicesRes.data || [];
+      const bookingsData = bookingsRes.data || [];
+      const usersData = usersRes.data || [];
 
-      // กรองข้อมูล users ตาม role
-      const techUsers = usersData.filter(user => user.role === 'tech') || [];
-      const customerUsers = usersData.filter(user => user.role === 'user') || [];
+      const techUsers = usersData.filter((user) => user.role === "tech");
+      const customerUsers = usersData.filter((user) => user.role === "user");
 
-      // กรองข้อมูลการจองตามสถานะ
-      const activeBookings = bookingsData.filter(booking => 
-        booking.status !== "completed" && booking.status !== "rejected"
-      ) || [];
-      
-      const completedBookings = bookingsData.filter(booking => 
-        booking.status === "completed" || booking.status === "rejected"
-      ) || [];
-      
-      const successfulBookings = bookingsData.filter(booking => 
-        booking.status === "completed"
-      ) || [];
-      
-      const cancelledBookings = bookingsData.filter(booking => 
-        booking.status === "rejected"
-      ) || [];
+      const completedBookings = bookingsData.filter(
+        (booking) => booking.status === "completed" || booking.status === "rejected"
+      );
+      const successfulBookings = bookingsData.filter(
+        (booking) => booking.status === "completed"
+      );
+      const cancelledBookings = bookingsData.filter(
+        (booking) => booking.status === "rejected"
+      );
+      const pendingBookings = bookingsData.filter(
+        (booking) => booking.status === "pending"
+      );
+      const acceptBookings = bookingsData.filter(
+        (booking) => booking.status === "accepted"
+      );
+      const activeBookings = bookingsData.filter(
+        (booking) => booking.status !== "completed" && booking.status !== "rejected"
+      );
 
-      const pendingBookings = bookingsData.filter(booking => 
-        booking.status === "pending"
-      ) || [];
-
-      const acceptBookings = bookingsData.filter(booking => 
-        booking.status === "accepted"
-      ) || [];
-
-     
-
-
-
-      setDashboardData({
-        totalServices: servicesData.length || 0,
+      const totals = {
+        totalServices: servicesData.length,
         totalBookings: activeBookings.length,
         completedBookings: completedBookings.length,
         successfulBookings: successfulBookings.length,
         cancelledBookings: cancelledBookings.length,
-        acceptBookings: acceptBookings.length,
         pendingBookings: pendingBookings.length,
-        totalUsers: usersData.length || 0,
+        acceptBookings: acceptBookings.length,
+        totalUsers: usersData.length,
         totalTechs: techUsers.length,
         totalCustomers: customerUsers.length,
+      };
+
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      setDashboardState({
+        totals,
         loading: false,
-        error: null
+        error: null,
+        lastUpdated: Date.now(),
       });
-
-      // อัปเดต timestamp หลังจากโหลดข้อมูลสำเร็จ
-      setLastUpdated(new Date().toLocaleString('th-TH'));
-
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      setDashboardData(prev => ({
+      console.error("Error fetching dashboard data:", error);
+      if (!isMountedRef.current) {
+        return;
+      }
+      setDashboardState((prev) => ({
         ...prev,
         loading: false,
-        error: 'เกิดข้อผิดพลาดในการโหลดข้อมูล'
+        error: "เกิดข้อผิดพลาดในการโหลดข้อมูล",
       }));
+    }
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    fetchDashboardData();
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [fetchDashboardData]);
+
+  const handleRefresh = () => {
+    if (!dashboardState.loading) {
+      fetchDashboardData();
     }
   };
 
-  // โหลดข้อมูลเมื่อ component mount
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  const { totals, loading, error, lastUpdated } = dashboardState;
 
-  // ฟังก์ชันรีเฟรชข้อมูล
-  const handleRefresh = () => {
-    fetchDashboardData();
-  };
+  const formattedMetrics = useMemo(
+    () =>
+      metricConfig.map((config) => ({
+        ...config,
+        value: thaiNumberFormatter.format(totals[config.key] ?? 0),
+      })),
+    [totals]
+  );
+
+  const statusBreakdown = useMemo(() => {
+    const statuses = [
+      { key: "successfulBookings", label: "สำเร็จ", color: "bg-emerald-500" },
+      { key: "cancelledBookings", label: "ยกเลิก", color: "bg-rose-500" },
+      { key: "acceptBookings", label: "รับงานแล้ว", color: "bg-sky-500" },
+      { key: "pendingBookings", label: "รอดำเนินการ", color: "bg-amber-500" },
+    ];
+
+    const total = statuses.reduce(
+      (sum, item) => sum + (totals[item.key] ?? 0),
+      0
+    );
+
+    return statuses.map((item) => {
+      const value = totals[item.key] ?? 0;
+      const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+      return {
+        ...item,
+        value: thaiNumberFormatter.format(value),
+        percentage,
+      };
+    });
+  }, [totals]);
+
+  const userBreakdown = useMemo(() => {
+    const entries = [
+      {
+        key: "totalTechs",
+        label: "ช่างผู้เชี่ยวชาญ",
+        icon: UserCog,
+        highlight: "bg-blue-100 text-blue-700",
+      },
+      {
+        key: "totalCustomers",
+        label: "ลูกค้า",
+        icon: Users,
+        highlight: "bg-purple-100 text-purple-700",
+      },
+    ];
+
+    return entries.map((entry) => ({
+      ...entry,
+      value: thaiNumberFormatter.format(totals[entry.key] ?? 0),
+    }));
+  }, [totals]);
+
+  const formattedLastUpdated = useMemo(() => {
+    if (!lastUpdated) return null;
+    return thaiDateTimeFormatter.format(lastUpdated);
+  }, [lastUpdated]);
 
   return (
-    <div>
-      <NavigationSwitcher />
-      
-      {/* Main Content */}
-      <div className="bg-gray-100 min-h-screen">
-        <div className="p-6">
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800 mb-2">Dashboard</h2>
-                  <p className="text-gray-600">ภาพรวมของระบบจัดการบริการ</p>
-                </div>
-                <button
-                  onClick={handleRefresh}
-                  disabled={dashboardData.loading}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg transition-colors"
-                >
-                  {dashboardData.loading ? 'กำลังโหลด...' : 'รีเฟรช'}
-                </button>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {dashboardData.error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
-                <p>{dashboardData.error}</p>
-              </div>
+    <div className="space-y-6">
+      <section className="rounded-xl bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold text-slate-900">ภาพรวมระบบ</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              ติดตามการดำเนินงานแบบเรียลไทม์เพื่อบริหารจัดการทีมและบริการได้อย่างมั่นใจ
+            </p>
+          </div>
+          <div className="flex flex-col items-start gap-3 text-sm text-slate-500 sm:flex-row sm:items-center">
+            {formattedLastUpdated && (
+              <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+                อัปเดตล่าสุด: {formattedLastUpdated}
+              </span>
             )}
-
-            {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
-              {/* Total Services */}
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-blue-100 text-blue-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">บริการทั้งหมด</h3>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {dashboardData.loading ? '...' : dashboardData.totalServices.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Total Bookings (Active) */}
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-green-100 text-green-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">การจองทั้งหมด</h3>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {dashboardData.loading ? '...' : dashboardData.totalBookings.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Completed Bookings */}
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-teal-100 text-teal-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className=" ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">การจบงาน</h3>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {dashboardData.loading ? '...' : dashboardData.completedBookings.toLocaleString()}
-                    </p>
-                    {/* <div className=" space-x-4 mt-2 text-xs">
-                      <span className="text-green-600">
-                        สำเร็จ: {dashboardData.loading ? '...' : dashboardData.successfulBookings.toLocaleString()}
-                      </span>
-                      <span className="text-red-600">
-                        ยกเลิก: {dashboardData.loading ? '...' : dashboardData.cancelledBookings.toLocaleString()}
-                      </span>
-                    </div> */}
-                  </div>
-                </div>
-              </div>
-
-              {/* Total Users */}
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-purple-100 text-purple-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">ผู้ใช้ทั้งหมด</h3>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {dashboardData.loading ? '...' : dashboardData.totalUsers.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Total Techs */}
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-orange-100 text-orange-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">ช่างทั้งหมด</h3>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {dashboardData.loading ? '...' : dashboardData.totalTechs.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Total Customers */}
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-indigo-100 text-indigo-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">ลูกค้าทั้งหมด</h3>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {dashboardData.loading ? '...' : dashboardData.totalCustomers.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Additional Info */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">สรุปข้อมูลระบบ</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <div className="text-blue-600 font-semibold">บริการ</div>
-                  <div className="text-gray-700">มีบริการทั้งหมด {dashboardData.totalServices} รายการ</div>
-                </div>
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <div className="text-green-600 font-semibold">การจอง</div>
-                  <div className="text-gray-700">การจองทั้งหมด {dashboardData.totalBookings} ครั้ง</div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    งานที่รอ {dashboardData.pendingBookings} | รับงานแล้ว {dashboardData.acceptBookings}
-                  </div>
-                </div>
-                <div className="p-4 bg-teal-50 rounded-lg">
-                  <div className="text-teal-600 font-semibold">การจบงาน</div>
-                  <div className="text-gray-700">จบงานแล้ว {dashboardData.completedBookings} ครั้ง</div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    สำเร็จ {dashboardData.successfulBookings} | ยกเลิก {dashboardData.cancelledBookings}
-                  </div>
-                </div>
-                <div className="p-4 bg-orange-50 rounded-lg">
-                  <div className="text-orange-600 font-semibold">ช่างเทคนิค</div>
-                  <div className="text-gray-700">มีช่างทั้งหมด {dashboardData.totalTechs} คน</div>
-                </div>
-                <div className="p-4 bg-indigo-50 rounded-lg">
-                  <div className="text-indigo-600 font-semibold">ลูกค้า</div>
-                  <div className="text-gray-700">มีลูกค้าทั้งหมด {dashboardData.totalCustomers} คน</div>
-                </div>
-              </div>
-              
-              {/* Last Updated Info */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-xs text-gray-500">
-                  {lastUpdated && `อัปเดตล่าสุด: ${lastUpdated}`}
-                </p>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              รีเฟรชข้อมูล
+            </button>
           </div>
         </div>
+      </section>
+
+      {error && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600">
+          {error}
+        </div>
+      )}
+
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {loading
+          ? metricConfig.map((config) => (
+              <div
+                key={config.key}
+                className="h-28 animate-pulse rounded-xl border border-slate-100 bg-slate-100/60"
+              />
+            ))
+          : formattedMetrics.map((metric) => (
+              <DashboardMetricCard key={metric.key} {...metric} />
+            ))}
+      </section>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <section className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-slate-900">สถานะการดำเนินงาน</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            วิเคราะห์จำนวนงานแต่ละสถานะเพื่อปรับแผนการทำงานของทีมให้ตอบสนองได้ไวขึ้น
+          </p>
+          <div className="mt-6 space-y-4">
+            {statusBreakdown.map((status) => (
+              <div key={status.key} className="space-y-2">
+                <div className="flex items-center justify-between text-sm font-medium text-slate-600">
+                  <span>{status.label}</span>
+                  <span>{status.value} ({status.percentage}%)</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-100">
+                  <div
+                    className={`h-full rounded-full ${status.color}`}
+                    style={{ width: `${status.percentage}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+            {statusBreakdown.every((status) => status.percentage === 0) && (
+              <p className="text-sm text-slate-500">
+                ยังไม่มีข้อมูลสถานะที่จะแสดงในขณะนี้
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-slate-900">ข้อมูลผู้ใช้งาน</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            ตรวจสอบสัดส่วนผู้ใช้งานและทีมงานเพื่อประเมินทรัพยากรที่พร้อมให้บริการ
+          </p>
+          <div className="mt-6 rounded-lg bg-slate-50 p-4 text-center">
+            <p className="text-xs uppercase tracking-wide text-slate-500">ผู้ใช้งานทั้งหมด</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">
+              {thaiNumberFormatter.format(totals.totalUsers ?? 0)} คน
+            </p>
+          </div>
+          <div className="mt-6 space-y-3">
+            {userBreakdown.map((entry) => {
+              const Icon = entry.icon;
+              return (
+                <div
+                  key={entry.key}
+                  className="flex items-center justify-between rounded-lg bg-white px-3 py-3 shadow-sm ring-1 ring-slate-100"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-full ${entry.highlight}`}>
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">{entry.label}</p>
+                      <p className="text-xs text-slate-500">อัปเดตเรียลไทม์จากฐานข้อมูล</p>
+                    </div>
+                  </div>
+                  <span className="text-lg font-semibold text-slate-900">{entry.value}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       </div>
     </div>
   );

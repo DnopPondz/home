@@ -2,19 +2,14 @@
 
 import { usePathname } from 'next/navigation';
 import Navbar from './navbar';
-import AdminSidebar from './adminSidebar';
 
 export default function NavigationSwitcher() {
   const pathname = usePathname();
   const isAdminPage = pathname.startsWith('/page/admin');
 
   if (isAdminPage) {
-    // แสดง Sidebar ในหน้า Admin
-    return (
-      <div className="hidden">
-        <AdminSidebar />
-      </div>
-    );
+    // Avoid rendering the sidebar twice on admin pages (layout already includes it)
+    return null;
   }
 
   // แสดง Navbar ปกติ
