@@ -490,9 +490,9 @@ const ServiceHub = () => {
       return;
     }
 
-    const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=400x400&chl=${encodeURIComponent(
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(
       payload
-    )}&choe=UTF-8`;
+    )}`;
 
     setPromptPayQrError("");
     setPromptPayQrUrl(qrUrl);
@@ -910,6 +910,10 @@ const ServiceHub = () => {
                       <img
                         src={promptPayQrUrl}
                         alt="QR พร้อมเพย์สำหรับชำระเงิน"
+                        onError={() => {
+                          setPromptPayQrError("ไม่สามารถโหลด QR Code ได้ กรุณาลองใหม่อีกครั้ง");
+                          setPromptPayQrUrl("");
+                        }}
                         className="w-40 h-40 rounded-lg border border-white shadow-sm bg-white p-2"
                       />
                     ) : (
