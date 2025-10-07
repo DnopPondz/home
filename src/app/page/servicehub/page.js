@@ -8,6 +8,123 @@ import { useRouter } from "next/navigation";
 import { AuthContext } from "@/app/context/AuthContext";
 import { loadStripe } from "@stripe/stripe-js";
 
+const PROMPTPAY_AID = "A000000677010111";
+
+const formatEmvTag = (id, value) => {
+  const length = value.length.toString().padStart(2, "0");
+  return `${id}${length}${value}`;
+};
+
+const computeCrc16 = (payload) => {
+  let crc = 0xffff;
+  for (let i = 0; i < payload.length; i += 1) {
+    crc ^= payload.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j += 1) {
+      if ((crc & 0x8000) !== 0) {
+        crc = ((crc << 1) ^ 0x1021) & 0xffff;
+      } else {
+        crc = (crc << 1) & 0xffff;
+      }
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, "0");
+};
+
+const normalisePromptPayTarget = (input) => {
+  const digits = (input || "").replace(/\D/g, "");
+  if (!digits) return null;
+
+  if (digits.length === 13) {
+    return { type: "citizen", value: digits };
+  }
+
+  let mobile = digits;
+  if (mobile.startsWith("66") && mobile.length === 11) {
+    return { type: "mobile", value: mobile };
+  }
+
+  if (mobile.startsWith("0")) {
+    mobile = mobile.slice(1);
+  }
+
+  if (mobile.length < 8 || mobile.length > 10) {
+    return null;
+  }
+
+  return { type: "mobile", value: `66${mobile}` };
+};
+
+const toPromptPayAmount = (price) => {
+  if (price === undefined || price === null) {
+    return null;
+  }
+
+  if (typeof price === "number" && Number.isFinite(price)) {
+    return price.toFixed(2);
+  }
+
+  const digits = String(price).replace(/[^0-9.,]/g, "").replace(/,/g, "");
+  if (!digits) return null;
+
+  const parsed = parseFloat(digits);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  return parsed.toFixed(2);
+};
+
+const buildPromptPayPayload = (targetNumber, price) => {
+  const target = normalisePromptPayTarget(targetNumber);
+  if (!target) return null;
+
+  const amount = toPromptPayAmount(price);
+
+  let merchantAccountInfo = formatEmvTag("00", PROMPTPAY_AID);
+  if (target.type === "mobile") {
+    merchantAccountInfo += formatEmvTag("01", target.value);
+  } else {
+    merchantAccountInfo += formatEmvTag("02", target.value);
+  }
+
+  let payload = "";
+  payload += formatEmvTag("00", "01");
+  payload += formatEmvTag("01", amount ? "12" : "11");
+  payload += formatEmvTag("29", merchantAccountInfo);
+  payload += formatEmvTag("52", "0000");
+  payload += formatEmvTag("53", "764");
+  if (amount) {
+    payload += formatEmvTag("54", amount);
+  }
+  payload += formatEmvTag("58", "TH");
+  payload += formatEmvTag("59", "HOME SERVICE");
+  payload += formatEmvTag("60", "BANGKOK");
+
+  const payloadForCrc = `${payload}6304`;
+  const crc = computeCrc16(payloadForCrc);
+  return `${payloadForCrc}${crc}`;
+};
+
+const formatPromptPayDisplay = (input) => {
+  const digits = (input || "").replace(/\D/g, "");
+  if (!digits) return "-";
+
+  if (digits.length === 13) {
+    return digits.replace(/(\d{1})(\d{4})(\d{5})(\d{3})/, "$1-$2-$3-$4");
+  }
+
+  if (digits.length === 11 && digits.startsWith("66")) {
+    const localNumber = `0${digits.slice(2)}`;
+    return localNumber.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3");
+  }
+
+  if (digits.length === 10) {
+    return digits.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3");
+  }
+
+  return digits;
+};
+
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
 // Modal component
@@ -209,6 +326,8 @@ const ServiceHub = () => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentSlip, setPaymentSlip] = useState(null);
   const [paymentSlipError, setPaymentSlipError] = useState("");
+  const [promptPayQrUrl, setPromptPayQrUrl] = useState("");
+  const [promptPayQrError, setPromptPayQrError] = useState("");
   const [slipInputKey, setSlipInputKey] = useState(0);
 
   // Customer contact information state
@@ -323,6 +442,8 @@ const ServiceHub = () => {
     setPaymentMethod("bank_transfer");
     setPaymentSlip(null);
     setPaymentSlipError("");
+    setPromptPayQrUrl("");
+    setPromptPayQrError("");
     setSlipInputKey((prev) => prev + 1);
     setModalStep(1);
     setModalOpen(true);
@@ -332,6 +453,8 @@ const ServiceHub = () => {
     setModalOpen(false);
     setPaymentSlip(null);
     setPaymentSlipError("");
+    setPromptPayQrUrl("");
+    setPromptPayQrError("");
     setSlipInputKey((prev) => prev + 1);
   };
 
@@ -340,6 +463,40 @@ const ServiceHub = () => {
       setPaymentSlipError("");
     }
   }, [paymentMethod]);
+
+  useEffect(() => {
+    if (paymentMethod !== "bank_transfer") {
+      setPromptPayQrUrl("");
+      setPromptPayQrError("");
+      return;
+    }
+
+    const promptPayNumber = process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER || "";
+
+    if (!promptPayNumber) {
+      setPromptPayQrError("กรุณาตั้งค่าเลขพร้อมเพย์ (NEXT_PUBLIC_PROMPTPAY_NUMBER) เพื่อสร้าง QR Code");
+      setPromptPayQrUrl("");
+      return;
+    }
+
+    const payload = buildPromptPayPayload(
+      promptPayNumber,
+      selectedPrice?.price ?? selectedService?.price
+    );
+
+    if (!payload) {
+      setPromptPayQrError("ไม่สามารถสร้าง QR Code สำหรับเลขพร้อมเพย์ที่ให้มาได้");
+      setPromptPayQrUrl("");
+      return;
+    }
+
+    const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=400x400&chl=${encodeURIComponent(
+      payload
+    )}&choe=UTF-8`;
+
+    setPromptPayQrError("");
+    setPromptPayQrUrl(qrUrl);
+  }, [paymentMethod, selectedPrice, selectedService]);
 
   const handleSlipChange = (event) => {
     const file = event.target.files?.[0];
@@ -748,19 +905,29 @@ const ServiceHub = () => {
             {paymentMethod === "bank_transfer" && (
               <div className="ml-6 mt-2 p-3 rounded-lg border border-blue-100 bg-blue-50">
                 <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex items-center justify-center">
-                    <Image
-                      src="/payment/qr-bank.svg"
-                      alt="QR พร้อมเพย์สำหรับชำระเงิน"
-                      width={160}
-                      height={160}
-                      className="rounded-lg border border-white shadow-sm"
-                    />
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    {promptPayQrUrl ? (
+                      <img
+                        src={promptPayQrUrl}
+                        alt="QR พร้อมเพย์สำหรับชำระเงิน"
+                        className="w-40 h-40 rounded-lg border border-white shadow-sm bg-white p-2"
+                      />
+                    ) : (
+                      <div className="w-40 h-40 rounded-lg border border-dashed border-blue-300 flex items-center justify-center bg-white text-center text-xs text-blue-600 p-3">
+                        {promptPayQrError || "กำลังเตรียม QR Code"}
+                      </div>
+                    )}
+                    <p className="text-xs font-medium text-blue-900">
+                      เลขพร้อมเพย์: {formatPromptPayDisplay(process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER)}
+                    </p>
                   </div>
                   <div className="flex-1 space-y-3 text-sm text-blue-900">
                     <p>
                       สแกน QR Code เพื่อโอนเงินตามยอดที่ระบุ แล้วอัปโหลดสลิปเพื่อให้ทีมงานตรวจสอบการชำระเงิน
                     </p>
+                    {promptPayQrError && (
+                      <p className="text-xs text-red-500">{promptPayQrError}</p>
+                    )}
                     <div>
                       <label className="block text-sm font-medium text-blue-900 mb-1">
                         อัปโหลดสลิปการโอน
