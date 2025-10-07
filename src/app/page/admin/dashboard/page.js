@@ -27,14 +27,35 @@ const parseBookingDate = (booking) => {
   for (const candidate of candidates) {
     if (!candidate) continue;
 
-    if (typeof candidate === 'object' && candidate.$date) {
-      const parsed = new Date(candidate.$date);
+    if (typeof candidate === 'object') {
+      if (candidate.$date) {
+        const parsed = new Date(candidate.$date);
+        if (!Number.isNaN(parsed.getTime())) return parsed;
+      }
+      if (candidate.seconds) {
+        const parsed = new Date(candidate.seconds * 1000);
+        if (!Number.isNaN(parsed.getTime())) return parsed;
+      }
+    }
+
+    if (typeof candidate === 'number') {
+      const parsed = new Date(candidate);
       if (!Number.isNaN(parsed.getTime())) return parsed;
     }
 
-    const parsed = new Date(candidate);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed;
+    if (typeof candidate === 'string') {
+      // Handle DD/MM/YYYY strings commonly used in the admin panels
+      const ddMmYyyyMatch = candidate.match(/^(\d{1,2})[\/](\d{1,2})[\/](\d{4})$/);
+      if (ddMmYyyyMatch) {
+        const [, day, month, year] = ddMmYyyyMatch;
+        const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+        if (!Number.isNaN(parsed.getTime())) return parsed;
+      }
+
+      const parsed = new Date(candidate);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed;
+      }
     }
   }
 
@@ -44,9 +65,13 @@ const parseBookingDate = (booking) => {
 const parseAmount = (booking) => {
   const candidates = [
     booking?.amount,
+    booking?.totalAmount,
+    booking?.totalPrice,
+    booking?.amountPaid,
     booking?.estimatedPrice,
     booking?.serviceDetails?.price,
     booking?.price,
+    booking?.paymentDetails?.amount,
   ];
 
   for (const candidate of candidates) {
@@ -56,10 +81,16 @@ const parseAmount = (booking) => {
       return candidate;
     }
 
-    if (typeof candidate === 'object' && typeof candidate.$numberDecimal === 'string') {
-      const decimalValue = Number(candidate.$numberDecimal);
-      if (!Number.isNaN(decimalValue)) {
-        return decimalValue;
+    if (typeof candidate === 'object') {
+      if (typeof candidate.$numberDecimal === 'string') {
+        const decimalValue = Number(candidate.$numberDecimal);
+        if (!Number.isNaN(decimalValue)) {
+          return decimalValue;
+        }
+      }
+      if (candidate.amount && Number.isFinite(Number(candidate.amount))) {
+        const nested = Number(candidate.amount);
+        if (!Number.isNaN(nested)) return nested;
       }
     }
 
@@ -70,6 +101,52 @@ const parseAmount = (booking) => {
   }
 
   return 0;
+};
+
+const normalizeText = (value) =>
+  (value || '')
+    .toString()
+    .trim()
+    .toLowerCase();
+
+const inferAmountFromService = (booking, servicesMap) => {
+  const serviceId = normalizeId(booking?.serviceId);
+  if (!serviceId) return 0;
+
+  const service = servicesMap.get(serviceId);
+  if (!service?.priceOptions || !Array.isArray(service.priceOptions)) {
+    return 0;
+  }
+
+  const bookingPriceOptionId = normalizeId(booking?.priceOptionId);
+  const bookingOptionText = normalizeText(
+    booking?.selectedOption ||
+      booking?.priceOption ||
+      booking?.priceLabel ||
+      booking?.serviceOption
+  );
+
+  const matchedOption = service.priceOptions.find((option) => {
+    const optionId = normalizeId(option?._id || option?.id || option?.value);
+    if (optionId && bookingPriceOptionId && optionId === bookingPriceOptionId) {
+      return true;
+    }
+
+    const optionText = normalizeText(
+      option?.option || option?.label || option?.name || option?.title
+    );
+    return Boolean(optionText) && Boolean(bookingOptionText) && optionText === bookingOptionText;
+  });
+
+  if (!matchedOption) return 0;
+
+  const optionPrice = Number(
+    String(
+      matchedOption?.price || matchedOption?.amount || matchedOption?.value
+    ).replace(/[^0-9.-]/g, '')
+  );
+
+  return Number.isNaN(optionPrice) ? 0 : optionPrice;
 };
 
 const formatCurrency = (value) => {
@@ -164,7 +241,26 @@ export default function AdminDashboard() {
         if (!booking) return;
 
         const bookingStatus = (booking.status || '').toLowerCase();
-        if (!['completed', 'accepted', 'paid'].includes(bookingStatus)) {
+        const paymentStatus = (booking.paymentStatus || '').toLowerCase();
+
+        const statusQualified = [
+          'completed',
+          'accepted',
+          'paid',
+          'success',
+          'successful',
+          'done',
+        ].includes(bookingStatus);
+
+        const paymentQualified = [
+          'paid',
+          'awaiting_verification',
+          'cash_on_delivery',
+          'completed',
+          'success',
+        ].includes(paymentStatus);
+
+        if (!statusQualified && !paymentQualified) {
           return;
         }
 
@@ -174,10 +270,15 @@ export default function AdminDashboard() {
 
         const serviceId = normalizeId(booking.serviceId);
         const service = servicesMap.get(serviceId);
-        const serviceName = booking.serviceName || service?.name || service?.serviceType || 'บริการอื่นๆ';
+        const serviceName =
+          booking.serviceName ||
+          booking.serviceCategory ||
+          service?.name ||
+          service?.serviceType ||
+          'บริการอื่นๆ';
 
-        const amount = parseAmount(booking);
-        if (!amount) return;
+        const amount = parseAmount(booking) || inferAmountFromService(booking, servicesMap);
+        if (!amount || amount <= 0) return;
 
         weeklySalesTotal += amount;
         weeklySalesCount += 1;
