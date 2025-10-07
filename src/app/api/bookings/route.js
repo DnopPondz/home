@@ -48,10 +48,55 @@ export async function GET(req) {
     const url = new URL(req.url);
     const status = url.searchParams.get("status");
     const assignedTo = url.searchParams.get("assignedTo");
+    const serviceId = url.searchParams.get("serviceId");
+    const bookingDate = url.searchParams.get("bookingDate");
+    const bookingTime = url.searchParams.get("bookingTime");
 
-    const filter = {};
-    if (status) filter.status = status;
-    if (assignedTo) filter.assignedTo = new ObjectId(assignedTo);
+    const conditions = [];
+
+    if (status) {
+      conditions.push({ status });
+    }
+
+    if (assignedTo) {
+      if (!ObjectId.isValid(assignedTo)) {
+        return new Response(
+          JSON.stringify({ message: "assignedTo ไม่ถูกต้อง" }),
+          { status: 400 }
+        );
+      }
+      conditions.push({ assignedTo: new ObjectId(assignedTo) });
+    }
+
+    if (serviceId) {
+      if (!ObjectId.isValid(serviceId)) {
+        return new Response(
+          JSON.stringify({ message: "serviceId ไม่ถูกต้อง" }),
+          { status: 400 }
+        );
+      }
+      conditions.push({ serviceId: new ObjectId(serviceId) });
+    }
+
+    if (bookingDate) {
+      conditions.push({
+        $or: [
+          { bookingDate },
+          { date: bookingDate },
+        ],
+      });
+    }
+
+    if (bookingTime) {
+      conditions.push({
+        $or: [
+          { bookingTime },
+          { time: bookingTime },
+        ],
+      });
+    }
+
+    const filter = conditions.length ? { $and: conditions } : {};
 
     const results = await bookings.find(filter).sort({ createdAt: -1 }).toArray();
     return new Response(JSON.stringify(results), { status: 200 });
