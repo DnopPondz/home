@@ -141,12 +141,17 @@ const Calendar = ({ selectedDate, onDateSelect }) => {
 };
 
 // Time Selector Component
-const TimeSelector = ({ selectedTime, onTimeSelect }) => {
+const TimeSelector = ({
+  selectedTime,
+  onTimeSelect,
+  unavailableTimes = [],
+  loading = false,
+}) => {
   const timeSlots = [
     "08:00", "09:00", "10:00", "11:00", "12:00", "13:00",
     "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"
   ];
-  
+
   return (
     <div className="bg-white rounded-lg border p-4">
       <h4 className="text-md font-medium mb-3">เลือกเวลา</h4>
@@ -155,16 +160,27 @@ const TimeSelector = ({ selectedTime, onTimeSelect }) => {
           <button
             key={time}
             onClick={() => onTimeSelect(time)}
-            className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-              selectedTime === time
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            disabled={loading || unavailableTimes.includes(time)}
+            className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors border ${
+              unavailableTimes.includes(time)
+                ? "bg-red-100 text-red-600 border-red-300 cursor-not-allowed"
+                : selectedTime === time
+                ? "bg-blue-600 text-white border-blue-600"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 border-transparent"
+            } ${loading ? "opacity-60 cursor-not-allowed" : ""}`}
           >
             {time}
           </button>
         ))}
       </div>
+      {loading && (
+        <p className="text-xs text-gray-500 mt-3">กำลังโหลดข้อมูลช่วงเวลาที่ว่าง...</p>
+      )}
+      {!loading && unavailableTimes.length > 0 && (
+        <p className="text-xs text-red-500 mt-3">
+          ช่วงเวลาที่ถูกจองแล้ว: {unavailableTimes.join(", ")} น.
+        </p>
+      )}
     </div>
   );
 };
@@ -184,6 +200,9 @@ const ServiceHub = () => {
   const [selectedService, setSelectedService] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
+  const [unavailableTimes, setUnavailableTimes] = useState([]);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState("");
 
   // Customer contact information state
   const [customerAddress, setCustomerAddress] = useState("");
@@ -218,6 +237,67 @@ const ServiceHub = () => {
     }
     fetchServices();
   }, []);
+
+  useEffect(() => {
+    if (!selectedDate) {
+      setUnavailableTimes([]);
+      setAvailabilityError("");
+      setAvailabilityLoading(false);
+    }
+  }, [selectedDate]);
+
+  useEffect(() => {
+    const serviceId = selectedService?.id;
+    if (!serviceId || !selectedDate) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const fetchAvailability = async () => {
+      setAvailabilityLoading(true);
+      setAvailabilityError("");
+
+      try {
+        const dateString = selectedDate.toISOString().split("T")[0];
+        const response = await axios.get("/api/bookings/availability", {
+          params: { serviceId, date: dateString },
+        });
+
+        if (!isCancelled) {
+          setUnavailableTimes(response.data?.takenTimes || []);
+        }
+      } catch (error) {
+        console.error("Failed to load availability:", error);
+        if (!isCancelled) {
+          setUnavailableTimes([]);
+          setAvailabilityError("ไม่สามารถดึงข้อมูลช่วงเวลาที่ว่างได้");
+        }
+      } finally {
+        if (!isCancelled) {
+          setAvailabilityLoading(false);
+        }
+      }
+    };
+
+    fetchAvailability();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedService, selectedDate]);
+
+  useEffect(() => {
+    if (selectedTime && unavailableTimes.includes(selectedTime)) {
+      setSelectedTime(null);
+    }
+  }, [unavailableTimes, selectedTime]);
+
+  useEffect(() => {
+    if (selectedDate || selectedService) {
+      setSelectedTime(null);
+    }
+  }, [selectedDate, selectedService]);
 
   // Modal workflow
   const openBookingModal = (service) => {
@@ -413,7 +493,12 @@ const ServiceHub = () => {
               <TimeSelector
                 selectedTime={selectedTime}
                 onTimeSelect={setSelectedTime}
+                unavailableTimes={unavailableTimes}
+                loading={availabilityLoading}
               />
+              {availabilityError && (
+                <p className="text-xs text-red-500 mt-2">{availabilityError}</p>
+              )}
             </div>
           )}
           
