@@ -10,6 +10,31 @@ import { loadStripe } from "@stripe/stripe-js";
 
 const PROMPTPAY_AID = "A000000677010111";
 
+let stripePromise;
+
+const getStripePromise = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  if (!stripePromise) {
+    const rawKey =
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
+      process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY ||
+      "";
+
+    const publishableKey = rawKey.trim();
+
+    if (!publishableKey) {
+      return null;
+    }
+
+    stripePromise = loadStripe(publishableKey);
+  }
+
+  return stripePromise;
+};
+
 const formatEmvTag = (id, value) => {
   const length = value.length.toString().padStart(2, "0");
   return `${id}${length}${value}`;
@@ -124,9 +149,6 @@ const formatPromptPayDisplay = (input) => {
 
   return digits;
 };
-
-const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
 
 // Modal component
 const Modal = ({ open, onClose, children }) => {
@@ -643,6 +665,11 @@ const ServiceHub = () => {
     setPaymentLoading(true);
 
     try {
+      const stripePromiseInstance = getStripePromise();
+      if (!stripePromiseInstance) {
+        throw new Error("Stripe ยังไม่ได้ตั้งค่า");
+      }
+
       const overrides = { paymentMethod: "card", paymentStatus: "pending" };
       const { booking, bookingData } = await submitBooking(overrides);
 
@@ -651,13 +678,9 @@ const ServiceHub = () => {
         throw new Error("ไม่พบรหัสการจองสำหรับการชำระเงิน");
       }
 
-      if (!stripePromise) {
-        throw new Error("Stripe ยังไม่ได้ตั้งค่า");
-      }
-
       const res = await axios.post("/api/checkout", { ...bookingData, bookingId });
 
-      const stripe = await stripePromise;
+      const stripe = await stripePromiseInstance;
       if (!stripe) {
         throw new Error("ไม่สามารถโหลด Stripe ได้");
       }
