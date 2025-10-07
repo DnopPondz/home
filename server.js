@@ -4,6 +4,13 @@ require("dotenv").config()
 
 const uri = process.env.MONGODB_URI
 
+if (!uri) {
+  console.warn(
+    "⚠️  MONGODB_URI is not set in the environment. Skipping MongoDB connection test."
+  )
+  process.exit(0)
+}
+
 async function testConnection() {
   const client = new MongoClient(uri)
 
