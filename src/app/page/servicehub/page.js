@@ -698,11 +698,6 @@ const ServiceHub = () => {
     setPaymentLoading(true);
 
     try {
-      const stripePromiseInstance = getStripePromise();
-      if (!stripePromiseInstance) {
-        throw new Error("Stripe ยังไม่ได้ตั้งค่า");
-      }
-
       const overrides = { paymentMethod: "card", paymentStatus: "pending" };
       const { booking, bookingData } = await submitBooking(overrides);
 
@@ -713,12 +708,29 @@ const ServiceHub = () => {
 
       const res = await axios.post("/api/checkout", { ...bookingData, bookingId });
 
-      const stripe = await stripePromiseInstance;
-      if (!stripe) {
-        throw new Error("ไม่สามารถโหลด Stripe ได้");
+      const { id: sessionId, url: sessionUrl } = res?.data ?? {};
+      if (!sessionId && !sessionUrl) {
+        throw new Error("ไม่สามารถเริ่มการชำระเงินผ่าน Stripe ได้");
       }
 
-      await stripe.redirectToCheckout({ sessionId: res.data.id });
+      const stripePromiseInstance = getStripePromise();
+      if (stripePromiseInstance && sessionId) {
+        const stripe = await stripePromiseInstance;
+        if (stripe) {
+          const { error } = await stripe.redirectToCheckout({ sessionId });
+          if (!error) {
+            return;
+          }
+          console.error("Stripe redirectToCheckout error:", error);
+        }
+      }
+
+      if (sessionUrl) {
+        window.location.href = sessionUrl;
+        return;
+      }
+
+      throw new Error("ไม่สามารถเปิดหน้าชำระเงินของ Stripe ได้");
     } catch (err) {
       console.error("Stripe checkout error:", err);
       const message =
