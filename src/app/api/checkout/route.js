@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 const resolveBaseUrl = (req) => {
   const candidates = [
@@ -37,6 +38,13 @@ export async function POST(req) {
   console.log("💬 [Checkout API] body:", body);
 
   try {
+    if (!stripe) {
+      console.error("❌ Stripe secret key is not configured");
+      return new Response(JSON.stringify({ error: "Stripe ยังไม่ได้ตั้งค่า" }), {
+        status: 500,
+      });
+    }
+
     const {
       amount,
       serviceName,
