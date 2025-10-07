@@ -99,7 +99,12 @@ export async function POST(req) {
       },
     });
 
-    return new Response(JSON.stringify({ id: session.id }), { status: 200 });
+    return new Response(
+      JSON.stringify({ id: session.id, url: session.url ?? null }),
+      {
+        status: 200,
+      }
+    );
   } catch (err) {
     console.error("🔥 [Stripe API Error]:", err);
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
