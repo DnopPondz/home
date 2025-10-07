@@ -125,7 +125,8 @@ const formatPromptPayDisplay = (input) => {
   return digits;
 };
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
 
 // Modal component
 const Modal = ({ open, onClose, children }) => {
@@ -650,13 +651,25 @@ const ServiceHub = () => {
         throw new Error("ไม่พบรหัสการจองสำหรับการชำระเงิน");
       }
 
+      if (!stripePromise) {
+        throw new Error("Stripe ยังไม่ได้ตั้งค่า");
+      }
+
       const res = await axios.post("/api/checkout", { ...bookingData, bookingId });
 
       const stripe = await stripePromise;
+      if (!stripe) {
+        throw new Error("ไม่สามารถโหลด Stripe ได้");
+      }
+
       await stripe.redirectToCheckout({ sessionId: res.data.id });
     } catch (err) {
       console.error("Stripe checkout error:", err);
-      alert("ไม่สามารถดำเนินการชำระเงินได้");
+      const message =
+        err && typeof err === "object" && "message" in err && err.message
+          ? err.message
+          : "ไม่สามารถดำเนินการชำระเงินได้";
+      alert(message);
     } finally {
       setPaymentLoading(false);
     }
