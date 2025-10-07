@@ -12,18 +12,51 @@ const PROMPTPAY_AID = "A000000677010111";
 
 let stripePromise;
 
+const resolveStripePublishableKey = () => {
+  const candidates = [
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY,
+    process.env.NEXT_PUBLIC_STRIPE_KEY,
+    process.env.NEXT_PUBLIC_STRIPE_PK,
+    process.env.STRIPE_PUBLISHABLE_KEY,
+    process.env.STRIPE_PUBLIC_KEY,
+  ];
+
+  for (const key of candidates) {
+    if (typeof key === "string") {
+      const trimmed = key.trim();
+      if (trimmed) {
+        return trimmed;
+      }
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    const runtimeCandidates = [
+      window.__STRIPE_PUBLISHABLE_KEY__,
+      window.__NEXT_DATA__?.runtimeConfig?.stripePublishableKey,
+    ];
+
+    for (const runtimeKey of runtimeCandidates) {
+      if (typeof runtimeKey === "string") {
+        const trimmed = runtimeKey.trim();
+        if (trimmed) {
+          return trimmed;
+        }
+      }
+    }
+  }
+
+  return null;
+};
+
 const getStripePromise = () => {
   if (typeof window === "undefined") {
     return null;
   }
 
   if (!stripePromise) {
-    const rawKey =
-      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
-      process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY ||
-      "";
-
-    const publishableKey = rawKey.trim();
+    const publishableKey = resolveStripePublishableKey();
 
     if (!publishableKey) {
       return null;
