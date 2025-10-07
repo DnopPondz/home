@@ -58,6 +58,8 @@ export async function GET(req, context) {
           customerPhone: 1,
           customerLocation: 1,
           paymentMethod: 1,
+          paymentStatus: 1,
+          paymentSlip: 1,
           bookingDate: 1,
           bookingTime: 1,
           date: 1,

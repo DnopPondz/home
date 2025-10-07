@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useContext } from "react";
 import axios from "axios";
-import { User, Phone, MapPin, Clock, CheckCircle, X, RefreshCw } from "lucide-react";
+import { User, Phone, MapPin, Clock, CheckCircle, X, RefreshCw, CreditCard } from "lucide-react";
 import { AuthContext } from "@/app/context/AuthContext.js"; // ปรับ path ให้ตรงกับโปรเจกต์ของคุณ
 
 const Service = () => {
@@ -164,6 +164,40 @@ const Service = () => {
     }[s] || s;
   };
 
+  const getPaymentMethodText = (method) => {
+    switch (method) {
+      case "bank_transfer":
+        return "ชำระผ่านธนาคาร";
+      case "cash":
+        return "ชำระเงินสด (ที่หน้างาน)";
+      case "card":
+      case "online":
+        return "บัตรเครดิต/เดบิต (Online Payment)";
+      default:
+        return method || "-";
+    }
+  };
+
+  const getPaymentStatusText = (status) => {
+    switch (status) {
+      case "awaiting_verification":
+        return "รอตรวจสอบหลักฐานการชำระเงิน";
+      case "cash_on_delivery":
+        return "ชำระเงินสดเมื่อให้บริการ";
+      case "paid":
+        return "ชำระเงินเรียบร้อย";
+      case "pending":
+        return "รอดำเนินการชำระเงิน";
+      default:
+        return status || "-";
+    }
+  };
+
+  const getPaymentSlipPreview = (slip) => {
+    if (!slip?.data || !slip?.contentType) return null;
+    return `data:${slip.contentType};base64,${slip.data}`;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm border-b">
@@ -206,8 +240,12 @@ const Service = () => {
         ) : jobs.length === 0 ? (
           <div className="text-center text-gray-500 py-20">ไม่มีงานในสถานะนี้</div>
         ) : (
-          jobs.map((job) => (
-            <div key={job._id} className="bg-white rounded-lg shadow-sm border p-6 mb-4">
+          jobs.map((job) => {
+            const slipPreview = getPaymentSlipPreview(job.paymentSlip);
+            const slipName = job.paymentSlip?.filename || job.paymentSlip?.name || "";
+
+            return (
+              <div key={job._id} className="bg-white rounded-lg shadow-sm border p-6 mb-4">
               <div className="flex justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-800">{job.serviceName}</h3>
@@ -227,7 +265,51 @@ const Service = () => {
                 <div>เบอร์: {job.customerPhone}</div>
                 <div>ที่อยู่: {job.customerLocation}</div>
                 <div>ราคา: {job.estimatedPrice}</div>
+                <div>วิธีการชำระเงิน: {getPaymentMethodText(job.paymentMethod)}</div>
+                {job.paymentStatus && (
+                  <div>สถานะการชำระเงิน: {getPaymentStatusText(job.paymentStatus)}</div>
+                )}
               </div>
+
+              {slipPreview && (
+                <div className="mt-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                    <CreditCard className="w-4 h-4" />
+                    <span>หลักฐานการโอน</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3 sm:items-start">
+                    <img
+                      src={slipPreview}
+                      alt="หลักฐานการโอน"
+                      className="w-40 rounded-lg border border-gray-200"
+                    />
+                    <div className="text-xs text-gray-600 space-y-2">
+                      {slipName && (
+                        <p className="text-gray-700">
+                          ชื่อไฟล์: <span className="font-medium">{slipName}</span>
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-3">
+                        <a
+                          href={slipPreview}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          เปิดดูรูป
+                        </a>
+                        <a
+                          href={slipPreview}
+                          download={slipName || "payment-slip"}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          ดาวน์โหลด
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-4 flex space-x-2">
                 {job.status === "pending" && (
@@ -246,8 +328,9 @@ const Service = () => {
                   </button>
                 )}
               </div>
-            </div>
-          ))
+              </div>
+            );
+          })
         )}
       </div>
 

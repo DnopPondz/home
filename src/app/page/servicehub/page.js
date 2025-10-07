@@ -299,6 +299,12 @@ const ServiceHub = () => {
     }
   }, [selectedDate, selectedService]);
 
+  useEffect(() => {
+    if (paymentMethod !== "bank_transfer") {
+      setPaymentSlipError("");
+    }
+  }, [paymentMethod]);
+
   // Modal workflow
   const openBookingModal = (service) => {
     if (!user || !user.userId) {
@@ -313,87 +319,212 @@ const ServiceHub = () => {
     // Set default values from user data
     setCustomerAddress(user.location || "");
     setCustomerPhone(user.phone || "");
+    setPaymentMethod("bank_transfer");
+    setPaymentSlip(null);
+    setPaymentSlipError("");
+    setSlipInputKey((prev) => prev + 1);
     setModalStep(1);
     setModalOpen(true);
   };
 
+  const closeModal = () => {
+    setModalOpen(false);
+    setPaymentSlip(null);
+    setPaymentSlipError("");
+    setSlipInputKey((prev) => prev + 1);
+  };
+
   // Step 3: Payment
-  const [paymentMethod, setPaymentMethod] = useState("online");
+  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentSlip, setPaymentSlip] = useState(null);
+  const [paymentSlipError, setPaymentSlipError] = useState("");
+  const [slipInputKey, setSlipInputKey] = useState(0);
 
-  // fake function: ใส่ logic ชำระเงินจริงแทนที่นี่
-  const handlePayment = async () => {
-  setPaymentLoading(true);
+  useEffect(() => {
+    if (paymentMethod !== "bank_transfer") {
+      setPaymentSlipError("");
+    }
+  }, [paymentMethod]);
 
-  try {
-    const amount = parseInt(selectedPrice.price.toString().replace(/[^\d]/g, ""));
+  const handleSlipChange = (event) => {
+    const file = event.target.files?.[0];
 
-    const bookingData = {
+    if (!file) {
+      setPaymentSlip(null);
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setPaymentSlip(null);
+      setPaymentSlipError("กรุณาเลือกไฟล์รูปภาพเท่านั้น");
+      setSlipInputKey((prev) => prev + 1);
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      setPaymentSlip(null);
+      setPaymentSlipError("ขนาดไฟล์ต้องไม่เกิน 5MB");
+      setSlipInputKey((prev) => prev + 1);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        const base64Data = reader.result.split(",")[1];
+        if (!base64Data) {
+          setPaymentSlipError("ไม่สามารถอ่านไฟล์ได้");
+          setSlipInputKey((prev) => prev + 1);
+          return;
+        }
+
+        setPaymentSlip({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          dataUrl: reader.result,
+          base64: base64Data,
+        });
+        setPaymentSlipError("");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveSlip = () => {
+    setPaymentSlip(null);
+    setPaymentSlipError("");
+    setSlipInputKey((prev) => prev + 1);
+  };
+
+  const buildBookingData = (overrides = {}) => {
+    if (!selectedService || !selectedPrice || !selectedDate || !selectedTime) {
+      throw new Error("ข้อมูลการจองไม่ครบถ้วน");
+    }
+
+    if (!user || !user.userId) {
+      throw new Error("ไม่พบข้อมูลผู้ใช้");
+    }
+
+    const priceValue = selectedPrice?.price ?? 0;
+    const priceText = priceValue.toString();
+    const estimatedPrice = priceText.includes("฿") ? priceText : `${priceText} ฿`;
+    const amountNumber = parseInt(priceText.replace(/[^\d]/g, ""), 10);
+    const optionLabel =
+      selectedPrice?.option ||
+      selectedPrice?.label ||
+      selectedPrice?.name ||
+      selectedPrice?.title ||
+      "ตัวเลือก";
+
+    const payload = {
       serviceId: selectedService.id,
       userId: user.userId,
       serviceName: selectedService.title,
       serviceCategory: selectedService.category,
-      amount,
-       selectedOption: selectedPrice.option, 
-      estimatedPrice: amount + " ฿", // เพิ่ม field นี้เพื่อให้เหมือน handleBooking
+      estimatedPrice,
+      selectedOption: optionLabel,
       customerName: `${user.firstName} ${user.lastName}`,
       customerEmail: user.email,
       customerPhone: customerPhone || user.phone,
       customerLocation: customerAddress || user.location,
       bookingDate: selectedDate.toISOString().split("T")[0],
       bookingTime: selectedTime,
-      paymentMethod,
+      paymentMethod: overrides.paymentMethod || paymentMethod,
+      ...overrides,
     };
 
-    // 🔹 Step 1: สร้าง Booking ในฐานข้อมูล
-    const bookingRes = await axios.post("/api/bookings/[id]", bookingData);
+    if (!Number.isNaN(amountNumber)) {
+      payload.amount = amountNumber;
+    }
 
-    if (bookingRes.status !== 201) throw new Error("สร้าง booking ไม่สำเร็จ");
+    return payload;
+  };
 
-    const bookingId = bookingRes.data.booking._id;
+  const submitBooking = async (overrides = {}) => {
+    const bookingData = buildBookingData(overrides);
+    const response = await axios.post("/api/bookings/[id]", bookingData);
 
-    // 🔹 Step 2: สร้าง Stripe session
-    const res = await axios.post("/api/checkout", {
-      ...bookingData,
-      bookingId, // ส่งไปเผื่อใช้ใน metadata หรือ webhook
-    });
+    if (response.status !== 201) {
+      throw new Error("สร้างคำสั่งจองไม่สำเร็จ");
+    }
 
-    const stripe = await stripePromise;
-    await stripe.redirectToCheckout({ sessionId: res.data.id });
-  } catch (err) {
-    console.error("🔥 Stripe checkout error:", err);
-    alert("ไม่สามารถดำเนินการชำระเงินได้");
-  } finally {
-    setPaymentLoading(false);
-  }
-};
+    return { booking: response.data.booking, bookingData };
+  };
 
+  const handleBankTransferSubmit = async () => {
+    if (!paymentSlip?.base64) {
+      setPaymentSlipError("กรุณาอัปโหลดสลิปการโอนก่อนยืนยัน");
+      return;
+    }
 
-  // Booking API
+    setPaymentLoading(true);
+    try {
+      const slipPayload = {
+        paymentMethod: "bank_transfer",
+        paymentStatus: "awaiting_verification",
+        paymentSlip: {
+          data: paymentSlip.base64,
+          contentType: paymentSlip.type,
+          filename: paymentSlip.name,
+          uploadedAt: new Date().toISOString(),
+        },
+      };
+
+      const { booking } = await submitBooking(slipPayload);
+
+      if (booking?._id) {
+        closeModal();
+        router.push(`/page/booking-status?bookingId=${booking._id}`);
+      }
+    } catch (err) {
+      console.error("Bank transfer submission error:", err);
+      alert("ไม่สามารถบันทึกการชำระเงินผ่านธนาคารได้");
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const handlePayment = async () => {
+    setPaymentLoading(true);
+
+    try {
+      const overrides = { paymentMethod: "card", paymentStatus: "pending" };
+      const { booking, bookingData } = await submitBooking(overrides);
+
+      const bookingId = booking?._id;
+      if (!bookingId) {
+        throw new Error("ไม่พบรหัสการจองสำหรับการชำระเงิน");
+      }
+
+      const res = await axios.post("/api/checkout", { ...bookingData, bookingId });
+
+      const stripe = await stripePromise;
+      await stripe.redirectToCheckout({ sessionId: res.data.id });
+    } catch (err) {
+      console.error("Stripe checkout error:", err);
+      alert("ไม่สามารถดำเนินการชำระเงินได้");
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
   const handleBooking = async () => {
     setLoading(true);
     try {
-      const bookingData = {
-        serviceId: selectedService.id,
-        userId: user.userId,
-        serviceName: selectedService.title,
-        serviceCategory: selectedService.category,
-        estimatedPrice: selectedPrice.price + " ฿",
-        selectedOption: selectedPrice.option, 
-        customerName: `${user.firstName} ${user.lastName}`,
-        customerEmail: user.email,
-        customerPhone: customerPhone || user.phone,
-        customerLocation: customerAddress || user.location,
-        bookingDate: selectedDate.toISOString().split('T')[0],
-        bookingTime: selectedTime,
-        paymentMethod,
-      };
-      const response = await axios.post("/api/bookings/[id]", bookingData);
-      if (response.status === 201) {
-        setModalOpen(false);
-        router.push(`/page/booking-status?bookingId=${response.data.booking._id}`);
+      const { booking } = await submitBooking({
+        paymentMethod: "cash",
+        paymentStatus: "cash_on_delivery",
+      });
+
+      if (booking?._id) {
+        closeModal();
+        router.push(`/page/booking-status?bookingId=${booking._id}`);
       }
     } catch (error) {
+      console.error("Booking error:", error);
       alert("เกิดข้อผิดพลาดในการจองบริการ");
     } finally {
       setLoading(false);
@@ -588,22 +719,103 @@ const ServiceHub = () => {
           <p className="text-sm text-gray-700">เวลา: {selectedTime} น.</p>
           <p className="text-sm text-gray-700">ที่อยู่: {customerAddress || user.location || "ไม่มีข้อมูล"}</p>
           <p className="text-sm text-gray-700">เบอร์: {customerPhone || user.phone || "ไม่มีข้อมูล"}</p>
-          <p className="text-sm text-gray-700">ราคา: {selectedPrice?.price} ฿</p>
+          <p className="text-sm text-gray-700">
+            ราคา: {selectedPrice?.price
+              ? selectedPrice.price.toString().includes("฿")
+                ? selectedPrice.price
+                : `${selectedPrice.price} ฿`
+              : "-"}
+          </p>
         </div>
         
         <div className="mb-4">
-          <div className="mb-2">ยอดที่ต้องชำระ: <span className="font-semibold text-blue-700">{selectedPrice?.price} ฿</span></div>
+          <div className="mb-2">
+            ยอดที่ต้องชำระ:{" "}
+            <span className="font-semibold text-blue-700">
+              {selectedPrice?.price
+                ? selectedPrice.price.toString().includes("฿")
+                  ? selectedPrice.price
+                  : `${selectedPrice.price} ฿`
+                : "-"}
+            </span>
+          </div>
           <div className="flex flex-col gap-2">
             <label className="flex items-center gap-2">
               <input
                 type="radio"
                 name="payment"
                 className="accent-blue-500"
-                value="online"
-                checked={paymentMethod === "online"}
-                onChange={() => setPaymentMethod("online")}
+                value="bank_transfer"
+                checked={paymentMethod === "bank_transfer"}
+                onChange={() => setPaymentMethod("bank_transfer")}
               />
-              <span>โอนผ่าน QR พร้อมเพย์/บัตรเครดิต (Online Payment)</span>
+              <span>ชำระผ่านธนาคาร</span>
+            </label>
+            {paymentMethod === "bank_transfer" && (
+              <div className="ml-6 mt-2 p-3 rounded-lg border border-blue-100 bg-blue-50">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex items-center justify-center">
+                    <Image
+                      src="/payment/qr-bank.svg"
+                      alt="QR พร้อมเพย์สำหรับชำระเงิน"
+                      width={160}
+                      height={160}
+                      className="rounded-lg border border-white shadow-sm"
+                    />
+                  </div>
+                  <div className="flex-1 space-y-3 text-sm text-blue-900">
+                    <p>
+                      สแกน QR Code เพื่อโอนเงินตามยอดที่ระบุ แล้วอัปโหลดสลิปเพื่อให้ทีมงานตรวจสอบการชำระเงิน
+                    </p>
+                    <div>
+                      <label className="block text-sm font-medium text-blue-900 mb-1">
+                        อัปโหลดสลิปการโอน
+                      </label>
+                      <input
+                        key={slipInputKey}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleSlipChange}
+                        className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+                      />
+                      <p className="text-xs text-blue-800 mt-1">รองรับไฟล์ภาพ .jpg, .png ขนาดไม่เกิน 5MB</p>
+                      {paymentSlipError && (
+                        <p className="text-xs text-red-500 mt-1">{paymentSlipError}</p>
+                      )}
+                      {paymentSlip?.dataUrl && (
+                        <div className="mt-3 flex items-start gap-3">
+                          <img
+                            src={paymentSlip.dataUrl}
+                            alt="หลักฐานการโอน"
+                            className="w-40 rounded-lg border border-blue-200"
+                          />
+                          <div className="text-xs text-gray-600 space-y-1">
+                            <p className="font-medium text-gray-700">ไฟล์: {paymentSlip.name}</p>
+                            <button
+                              type="button"
+                              onClick={handleRemoveSlip}
+                              className="text-red-500 hover:text-red-600"
+                            >
+                              ลบสลิป
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="payment"
+                className="accent-blue-500"
+                value="card"
+                checked={paymentMethod === "card"}
+                onChange={() => setPaymentMethod("card")}
+              />
+              <span>บัตรเครดิต/เดบิต (Online Payment)</span>
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -619,28 +831,42 @@ const ServiceHub = () => {
           </div>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
-            className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg font-medium"
+            type="button"
+            className="flex-1 min-w-[140px] bg-gray-200 text-gray-700 py-2 rounded-lg font-medium"
             onClick={() => setModalStep(2)}
           >
             ย้อนกลับ
           </button>
-          {paymentMethod === "online" ? (
+          {paymentMethod === "bank_transfer" && (
             <button
-              className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium disabled:opacity-50"
+              type="button"
+              className="flex-1 min-w-[180px] bg-blue-600 text-white py-2 rounded-lg font-medium disabled:opacity-50"
+              disabled={paymentLoading || !paymentSlip?.base64}
+              onClick={handleBankTransferSubmit}
+            >
+              {paymentLoading ? "กำลังส่งหลักฐาน..." : "ยืนยันการโอน"}
+            </button>
+          )}
+          {paymentMethod === "card" && (
+            <button
+              type="button"
+              className="flex-1 min-w-[160px] bg-blue-600 text-white py-2 rounded-lg font-medium disabled:opacity-50"
               disabled={paymentLoading}
               onClick={handlePayment}
             >
-              {paymentLoading ? "กำลังชำระเงิน..." : "ชำระเงิน"}
+              {paymentLoading ? "กำลังชำระเงิน..." : "ชำระเงินออนไลน์"}
             </button>
-          ) : (
+          )}
+          {paymentMethod === "cash" && (
             <button
-              className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium"
+              type="button"
+              className="flex-1 min-w-[160px] bg-blue-600 text-white py-2 rounded-lg font-medium disabled:opacity-50"
               onClick={handleBooking}
               disabled={loading}
             >
-              {loading ? "กำลังดำเนินการ..." : "จองบริการ (เงินสด)"}
+              {loading ? "กำลังดำเนินการ..." : "จองบริการ (ชำระเงินสด)"}
             </button>
           )}
         </div>
@@ -792,7 +1018,7 @@ const ServiceHub = () => {
       </div>
       
       {/* Modal booking step */}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
+      <Modal open={modalOpen} onClose={closeModal}>
         {renderModalContent()}
       </Modal>
 
