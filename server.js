@@ -5,6 +5,13 @@ require("dotenv").config()
 const uri = process.env.MONGODB_URI
 
 async function testConnection() {
+  if (!uri) {
+    console.error(
+      "❌ MongoDB connection string is not configured. Please set MONGODB_URI in your environment."
+    )
+    return
+  }
+
   const client = new MongoClient(uri)
 
   try {

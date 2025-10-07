@@ -23,6 +23,13 @@ const serializeNotification = (notification) => ({
   bookingId: notification.bookingId?.toString?.() ?? notification.bookingId,
 });
 
+const resolveParams = async (paramsOrPromise) => {
+  if (paramsOrPromise && typeof paramsOrPromise.then === "function") {
+    return await paramsOrPromise;
+  }
+  return paramsOrPromise ?? {};
+};
+
 const buildUserFilter = (userId) => {
   const objectId = toObjectId(userId);
 
@@ -42,9 +49,9 @@ const buildUserFilter = (userId) => {
   return null;
 };
 
-export async function GET(_req, { params }) {
+export async function GET(_req, context) {
   try {
-    const { userId } = params;
+    const { userId } = await resolveParams(context?.params);
     const filter = buildUserFilter(userId);
 
     if (!filter) {
@@ -75,9 +82,9 @@ export async function GET(_req, { params }) {
   }
 }
 
-export async function PATCH(request, { params }) {
+export async function PATCH(request, context) {
   try {
-    const { userId } = params;
+    const { userId } = await resolveParams(context?.params);
     const userFilter = buildUserFilter(userId);
 
     if (!userFilter) {
@@ -130,9 +137,9 @@ export async function PATCH(request, { params }) {
   }
 }
 
-export async function DELETE(_request, { params }) {
+export async function DELETE(_request, context) {
   try {
-    const { userId } = params;
+    const { userId } = await resolveParams(context?.params);
     const userFilter = buildUserFilter(userId);
 
     if (!userFilter) {
