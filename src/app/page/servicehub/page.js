@@ -204,6 +204,13 @@ const ServiceHub = () => {
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [availabilityError, setAvailabilityError] = useState("");
 
+  // Step 3: Payment
+  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentSlip, setPaymentSlip] = useState(null);
+  const [paymentSlipError, setPaymentSlipError] = useState("");
+  const [slipInputKey, setSlipInputKey] = useState(0);
+
   // Customer contact information state
   const [customerAddress, setCustomerAddress] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -299,12 +306,6 @@ const ServiceHub = () => {
     }
   }, [selectedDate, selectedService]);
 
-  useEffect(() => {
-    if (paymentMethod !== "bank_transfer") {
-      setPaymentSlipError("");
-    }
-  }, [paymentMethod]);
-
   // Modal workflow
   const openBookingModal = (service) => {
     if (!user || !user.userId) {
@@ -333,13 +334,6 @@ const ServiceHub = () => {
     setPaymentSlipError("");
     setSlipInputKey((prev) => prev + 1);
   };
-
-  // Step 3: Payment
-  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
-  const [paymentLoading, setPaymentLoading] = useState(false);
-  const [paymentSlip, setPaymentSlip] = useState(null);
-  const [paymentSlipError, setPaymentSlipError] = useState("");
-  const [slipInputKey, setSlipInputKey] = useState(0);
 
   useEffect(() => {
     if (paymentMethod !== "bank_transfer") {
