@@ -1,59 +1,56 @@
-import Stripe from "stripe";
+import { NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
+import clientPromise from "@/lib/mongodb";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
+export const dynamic = "force-dynamic";
 
 export async function POST(req) {
-  const body = await req.json();
-  console.log("💬 [Checkout API] body:", body);
-
   try {
-    const {
-      amount,
-      serviceName,
-      bookingDate,
-      bookingTime,
-      userId,
-      customerEmail,
-    } = body;
+    const body = await req.json();
+    const { bookingId, paymentSlip, amount, paymentMethod = "promptpay" } = body;
 
-    console.log("💰 amount:", amount, typeof amount);
-
-    if (!amount || !serviceName || !bookingDate || !bookingTime || !userId || !customerEmail) {
-      console.warn("❌ Missing required fields:", body);
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
-        status: 400,
-      });
+    if (!bookingId || !paymentSlip) {
+      return NextResponse.json(
+        { message: "bookingId และ paymentSlip จำเป็นต้องมี" },
+        { status: 400 }
+      );
     }
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      mode: "payment",
-      line_items: [
-        {
-          price_data: {
-            currency: "thb",
-            product_data: {
-              name: serviceName,
-              description: `จองวันที่ ${bookingDate}, เวลา ${bookingTime}`,
-            },
-            unit_amount: amount * 100,
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/page/booking-status?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/page/booking-status?canceled=true`,
-      metadata: {
-        userId,
-        customerEmail,
-        bookingInfo: JSON.stringify(body),
-      },
-    });
+    if (!ObjectId.isValid(bookingId)) {
+      return NextResponse.json(
+        { message: "bookingId ไม่ถูกต้อง" },
+        { status: 400 }
+      );
+    }
 
-    return new Response(JSON.stringify({ id: session.id }), { status: 200 });
-  } catch (err) {
-    console.error("🔥 [Stripe API Error]:", err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    const client = await clientPromise;
+    const db = client.db("myDB");
+    const bookings = db.collection("bookings");
+
+    const updateData = {
+      paymentMethod,
+      paymentSlip,
+      paymentStatus: "awaiting_confirmation",
+      paymentAmount: amount ?? null,
+      paymentSubmittedAt: new Date(),
+    };
+
+    const result = await bookings.findOneAndUpdate(
+      { _id: new ObjectId(bookingId) },
+      { $set: updateData },
+      { returnDocument: "after" }
+    );
+
+    if (!result) {
+      return NextResponse.json({ message: "ไม่พบบุ๊กกิ้ง" }, { status: 404 });
+    }
+
+    return NextResponse.json(
+      { message: "บันทึกข้อมูลการชำระเงินเรียบร้อย", booking: result },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("PromptPay checkout API error:", error);
+    return NextResponse.json({ message: "เกิดข้อผิดพลาด", error: error.message }, { status: 500 });
   }
 }
