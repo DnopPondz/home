@@ -9,6 +9,23 @@ export async function POST(req) {
     const body = await req.json();
     const { serviceId, userId, ...rest } = body;
 
+    const sanitizedRest = { ...rest };
+
+    if (rest.paymentSlip && typeof rest.paymentSlip === "object") {
+      const { data, contentType, filename, uploadedAt } = rest.paymentSlip;
+
+      if (data && contentType) {
+        sanitizedRest.paymentSlip = {
+          data,
+          contentType,
+          filename: filename || null,
+          uploadedAt: uploadedAt ? new Date(uploadedAt) : new Date(),
+        };
+      } else {
+        delete sanitizedRest.paymentSlip;
+      }
+    }
+
     // Validate required fields
     if (!serviceId || !userId) {
       return new Response(JSON.stringify({ message: "serviceId และ userId จำเป็นต้องมี" }), { status: 400 });
@@ -27,7 +44,7 @@ export async function POST(req) {
       userId: new ObjectId(userId),
       status: "pending",
       createdAt: new Date(),
-      ...rest,
+      ...sanitizedRest,
     };
 
     const result = await bookings.insertOne(newBooking);

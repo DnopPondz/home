@@ -10,6 +10,7 @@ import {
   Mail,
   Eye,
   FileText,
+  CreditCard,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -125,6 +126,40 @@ const UserHistory = () => {
     }
   };
 
+  const getPaymentMethodText = (method) => {
+    switch (method) {
+      case "bank_transfer":
+        return "ชำระผ่านธนาคาร";
+      case "cash":
+        return "ชำระเงินสด (ที่หน้างาน)";
+      case "card":
+      case "online":
+        return "บัตรเครดิต/เดบิต (Online Payment)";
+      default:
+        return method || "-";
+    }
+  };
+
+  const getPaymentSlipPreview = (slip) => {
+    if (!slip?.data || !slip?.contentType) return null;
+    return `data:${slip.contentType};base64,${slip.data}`;
+  };
+
+  const getPaymentStatusText = (status) => {
+    switch (status) {
+      case "awaiting_verification":
+        return "รอตรวจสอบหลักฐานการชำระเงิน";
+      case "cash_on_delivery":
+        return "ชำระเงินสดเมื่อให้บริการ";
+      case "paid":
+        return "ชำระเงินเรียบร้อย";
+      case "pending":
+        return "รอดำเนินการชำระเงิน";
+      default:
+        return status || "-";
+    }
+  };
+
   const filteredServices =
     filterStatus === "all"
       ? services
@@ -133,6 +168,11 @@ const UserHistory = () => {
             ? service.status === "completed" || service.status === "เสร็จสิ้น"
             : service.status === "rejected" || service.status === "ยกเลิก"
         );
+
+  const paymentSlipPreview = selectedService
+    ? getPaymentSlipPreview(selectedService.paymentSlip)
+    : null;
+  const paymentSlipName = selectedService?.paymentSlip?.filename || selectedService?.paymentSlip?.name || "";
 
   const renderStars = (rating) => {
     if (!rating) return null;
@@ -657,6 +697,72 @@ const UserHistory = () => {
                             {selectedService.estimatedPrice} 
                           </span>
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Payment Info */}
+                    <div className="border border-gray-200 rounded-lg p-6">
+                      <h4 className="font-semibold text-gray-800 mb-4 flex items-center space-x-2">
+                        <CreditCard className="w-5 h-5" />
+                        <span>ข้อมูลการชำระเงิน</span>
+                      </h4>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">วิธีการชำระเงิน:</p>
+                          <p className="text-gray-800">
+                            {getPaymentMethodText(selectedService.paymentMethod)}
+                          </p>
+                        </div>
+                        {selectedService.paymentStatus && (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">สถานะการชำระเงิน:</p>
+                            <p className="text-gray-800">
+                              {getPaymentStatusText(selectedService.paymentStatus)}
+                            </p>
+                          </div>
+                        )}
+                        {paymentSlipPreview && (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">หลักฐานการโอน:</p>
+                            <div className="flex flex-col sm:flex-row gap-3 sm:items-start">
+                              <img
+                                src={paymentSlipPreview}
+                                alt="หลักฐานการโอน"
+                                className="w-48 rounded-lg border border-gray-200"
+                              />
+                              <div className="text-sm text-gray-600 space-y-2">
+                                {paymentSlipName && (
+                                  <p className="text-gray-700">
+                                    ชื่อไฟล์: <span className="font-medium">{paymentSlipName}</span>
+                                  </p>
+                                )}
+                                <div className="flex flex-wrap gap-3">
+                                  <a
+                                    href={paymentSlipPreview}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800"
+                                  >
+                                    เปิดดูรูป
+                                  </a>
+                                  <a
+                                    href={paymentSlipPreview}
+                                    download={paymentSlipName || "payment-slip"}
+                                    className="text-blue-600 hover:text-blue-800"
+                                  >
+                                    ดาวน์โหลด
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {!paymentSlipPreview &&
+                          selectedService.paymentMethod === "bank_transfer" && (
+                            <p className="text-sm text-gray-500">
+                              ยังไม่มีการอัปโหลดสลิปการโอนเงิน
+                            </p>
+                          )}
                       </div>
                     </div>
 
