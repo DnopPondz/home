@@ -596,8 +596,8 @@ export default function AdminDashboard() {
                               const barColor = chartPalette[index % chartPalette.length];
 
                               return (
-                                <div key={key} className="flex w-28 flex-col items-center gap-3">
-                                  <div className="relative flex h-full w-full items-end justify-center">
+                                <div key={key} className="flex h-full w-28 flex-col items-center gap-3">
+                                  <div className="relative flex h-full w-full items-end justify-center overflow-visible">
                                     <div
                                       className="absolute left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow"
                                       style={{ bottom: labelBottom }}
