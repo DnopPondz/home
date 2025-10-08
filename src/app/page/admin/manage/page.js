@@ -465,7 +465,7 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
 };
 
 // Mobile User Card Component
-const MobileUserCard = ({ user, onRoleChange, onDeleteUser }) => {
+const MobileUserCard = ({ user, primaryRole, onRoleChange, onDeleteUser }) => {
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4 shadow-sm">
       <div className="flex items-center mb-3">
@@ -548,7 +548,7 @@ const MobileUserCard = ({ user, onRoleChange, onDeleteUser }) => {
         <div className="flex items-center justify-between">
           <span className="text-xs text-gray-500">Role:</span>
           <select
-            value={user.role}
+            value={primaryRole || "user"}
             onChange={(e) => onRoleChange(user._id, e.target.value)}
             className="border border-gray-300 rounded-md px-2 py-1 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
@@ -779,6 +779,7 @@ export default function ManageUsers() {
                   <MobileUserCard
                     key={user._id}
                     user={user}
+                    primaryRole={resolvePrimaryRole(user.role)}
                     onRoleChange={handleRoleChange}
                     onDeleteUser={handleDeleteUser}
                   />
