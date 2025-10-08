@@ -218,16 +218,29 @@ const Navbar = () => {
                 บริการของเรา
               </p>
             </Link>
+            <Link href="/page/worker-apply">
+              <p className="text-sm min-lg:text-[16px] cursor-pointer hover:text-[#336DF2] transition-colors">
+                สมัครงาน
+              </p>
+            </Link>
           </div>
 
           <div className="flex flex-row justify-center items-center gap-3.5">
             {!user ? (
-              <Link
-                href="/page/login"
-                className="w-[80px] h-[30px] border-[#336DF2] border-2 rounded-lg text-[#336DF2] text-sm text-center hover:bg-[#336DF2] hover:text-white transition-colors flex items-center justify-center"
-              >
-                เข้าสู่ระบบ
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/page/register"
+                  className="w-[90px] h-[30px] border-[#336DF2] border-2 rounded-lg text-[#336DF2] text-sm text-center hover:bg-[#336DF2] hover:text-white transition-colors flex items-center justify-center"
+                >
+                  สมัครสมาชิก
+                </Link>
+                <Link
+                  href="/page/login"
+                  className="w-[80px] h-[30px] bg-[#336DF2] rounded-lg text-white text-sm text-center hover:bg-[#2855c5] transition-colors flex items-center justify-center"
+                >
+                  เข้าสู่ระบบ
+                </Link>
+              </div>
             ) : (
               <div className="flex items-center gap-3">
                 <span className="text-sm text-gray-700 max-sm:hidden">
