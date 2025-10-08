@@ -4,6 +4,67 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import NavigationSwitcher from '../../../components/NavigationSwitcher';
 
+const HEX_PATTERN = /^#?([a-f\d]{3}|[a-f\d]{6})$/i;
+
+function hexToRgb(hex) {
+  if (typeof hex !== 'string' || !HEX_PATTERN.test(hex)) {
+    return null;
+  }
+
+  let normalized = hex.replace('#', '');
+
+  if (normalized.length === 3) {
+    normalized = normalized
+      .split('')
+      .map((char) => `${char}${char}`)
+      .join('');
+  }
+
+  const intValue = parseInt(normalized, 16);
+
+  return {
+    r: (intValue >> 16) & 255,
+    g: (intValue >> 8) & 255,
+    b: intValue & 255
+  };
+}
+
+function adjustColor(hex, amount = 0) {
+  const rgb = hexToRgb(hex);
+
+  if (!rgb) {
+    return hex;
+  }
+
+  const clamp = (value) => Math.min(255, Math.max(0, value));
+
+  const mixChannel = (channel) => {
+    if (amount >= 0) {
+      return clamp(Math.round(channel + (255 - channel) * amount));
+    }
+
+    return clamp(Math.round(channel * (1 + amount)));
+  };
+
+  const r = mixChannel(rgb.r);
+  const g = mixChannel(rgb.g);
+  const b = mixChannel(rgb.b);
+
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function buildBarGradient(hex) {
+  const highlight = adjustColor(hex, 0.4);
+  const midtone = adjustColor(hex, 0.1);
+  const shadow = adjustColor(hex, -0.2);
+
+  if (highlight === hex && midtone === hex && shadow === hex) {
+    return hex;
+  }
+
+  return `linear-gradient(180deg, ${highlight} 0%, ${midtone} 55%, ${shadow} 100%)`;
+}
+
 export default function AdminDashboard() {
   const [dashboardData, setDashboardData] = useState({
     totalServices: 0,
@@ -197,31 +258,28 @@ export default function AdminDashboard() {
     const rawMax = numericRevenues.reduce((max, revenue) => (revenue > max ? revenue : max), 0);
 
     if (rawMax <= 0) {
-      return { axisMax: 0, ticks: [] };
+      return { axisMax: 0, ticks: [0, 0, 0, 0, 0] };
     }
 
-    const niceNumber = (value) => {
-      if (value <= 0) return 0;
-      const exponent = Math.floor(Math.log10(value));
-      const fraction = value / 10 ** exponent;
-      let niceFraction;
-
-      if (fraction <= 1) niceFraction = 1;
-      else if (fraction <= 2) niceFraction = 2;
-      else if (fraction <= 5) niceFraction = 5;
-      else niceFraction = 10;
-
-      return niceFraction * 10 ** exponent;
-    };
-
-    const axisMax = niceNumber(rawMax);
-    const tickStep = axisMax / 4;
-    const ticks = Array.from({ length: 5 }, (_, index) =>
-      index === 4 ? axisMax : Math.round(tickStep * index)
-    );
+    const axisMax = rawMax;
+    const ticks = [0, axisMax * 0.25, axisMax * 0.5, axisMax * 0.75, axisMax];
 
     return { axisMax, ticks };
   }, [salesData.services]);
+
+  const formatAxisTick = useCallback((value) => {
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      return '0';
+    }
+
+    if (value === 0) {
+      return '0';
+    }
+
+    return value.toLocaleString('th-TH', {
+      maximumFractionDigits: 0
+    });
+  }, []);
 
   const statCards = useMemo(
     () => [
@@ -506,8 +564,8 @@ export default function AdminDashboard() {
                           {chartMeta.ticks
                             .slice()
                             .reverse()
-                            .map((value) => (
-                              <span key={`axis-${value}`}>{value === 0 ? '0' : formatCurrency(value).replace('฿', '')}</span>
+                            .map((value, index) => (
+                              <span key={`axis-${index}-${value}`}>{formatAxisTick(value)}</span>
                             ))}
                         </div>
                         <div className="relative">
@@ -518,40 +576,47 @@ export default function AdminDashboard() {
                                 .reverse()
                                 .map((value, index) => (
                                   <div
-                                    key={`grid-${value}-${index}`}
+                                    key={`grid-${index}-${value}`}
                                     className={`flex-1 ${index === chartMeta.ticks.length - 1 ? 'border-b-2 border-slate-400' : 'border-b border-dashed border-slate-200/80'}`}
                                   />
                                 ))}
                             </div>
                             <div className="absolute inset-y-0 left-0 w-px bg-slate-400" />
                           </div>
-                          <div className="relative flex h-72 items-end justify-around px-6 pb-10">
+                          <div className="relative flex h-72 items-end justify-around px-6 pb-16">
                             {salesData.services.map((service, index) => {
                               const revenue = typeof service.totalRevenue === 'number' ? service.totalRevenue : 0;
                               const bookingsCount = Number(service.totalBookings || 0);
                               const key = service.serviceId || service.serviceName || index;
                               const heightPercent = chartMeta.axisMax > 0 ? (revenue / chartMeta.axisMax) * 100 : 0;
-                              const fillHeight = Math.min(Math.max(heightPercent, 0), 100);
+                              const boundedHeight = Math.min(Math.max(heightPercent, 0), 100);
+                              const heightValue = Number.isFinite(boundedHeight) ? boundedHeight : 0;
+                              const heightString = `${heightValue.toFixed(2)}%`;
+                              const labelBottom = heightValue > 0 ? `calc(${heightValue.toFixed(2)}% + 12px)` : '12px';
                               const barColor = chartPalette[index % chartPalette.length];
 
                               return (
                                 <div key={key} className="flex w-28 flex-col items-center gap-3">
-                                  <div className="rounded-md bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow">
-                                    {formatCurrency(revenue)}
-                                  </div>
-                                  <div className="flex h-full w-full items-end justify-center">
-                                    <div className="flex h-full w-12 items-end justify-center">
+                                  <div className="relative flex h-full w-full items-end justify-center">
+                                    <div
+                                      className="absolute left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow"
+                                      style={{ bottom: labelBottom }}
+                                    >
+                                      {formatCurrency(revenue).replace('฿', '')}
+                                    </div>
+                                    <div className="flex h-full w-14 items-end justify-center">
                                       <div
-                                        className="w-full rounded-t-[6px] border border-slate-900/20 bg-current shadow-md transition-[height] duration-500"
+                                        className="w-full rounded-t-[28px] border border-slate-900/10 shadow-[0_12px_24px_-12px_rgba(15,23,42,0.45)] transition-[height] duration-500"
                                         style={{
-                                          height: `${fillHeight}%`,
-                                          backgroundColor: barColor
+                                          height: heightString,
+                                          backgroundColor: barColor,
+                                          backgroundImage: buildBarGradient(barColor)
                                         }}
                                       />
                                     </div>
                                   </div>
                                   <div className="text-center">
-                                    <p className="text-sm font-semibold text-slate-700 leading-tight break-words">
+                                    <p className="break-words text-sm font-semibold leading-tight text-slate-700">
                                       {service.serviceName || 'ไม่ระบุบริการ'}
                                     </p>
                                     <p className="text-xs text-slate-400">{bookingsCount.toLocaleString('th-TH')} งาน</p>
