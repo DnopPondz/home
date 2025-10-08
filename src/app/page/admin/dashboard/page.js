@@ -189,6 +189,37 @@ export default function AdminDashboard() {
     []
   );
 
+  const toRgba = useCallback((hex, alpha = 1) => {
+    if (typeof hex !== 'string') return `rgba(56, 189, 248, ${alpha})`;
+
+    let sanitized = hex.trim();
+
+    if (sanitized.startsWith('#')) {
+      sanitized = sanitized.slice(1);
+    }
+
+    if (sanitized.length === 3) {
+      sanitized = sanitized
+        .split('')
+        .map((char) => char + char)
+        .join('');
+    }
+
+    if (sanitized.length !== 6) {
+      return `rgba(56, 189, 248, ${alpha})`;
+    }
+
+    const r = parseInt(sanitized.slice(0, 2), 16);
+    const g = parseInt(sanitized.slice(2, 4), 16);
+    const b = parseInt(sanitized.slice(4, 6), 16);
+
+    if ([r, g, b].some((value) => Number.isNaN(value))) {
+      return `rgba(56, 189, 248, ${alpha})`;
+    }
+
+    return `rgba(${r}, ${g}, ${b}, ${Math.min(Math.max(alpha, 0), 1)})`;
+  }, []);
+
   const chartMeta = useMemo(() => {
     const numericRevenues = salesData.services.map((service) =>
       typeof service.totalRevenue === 'number' ? service.totalRevenue : 0
@@ -531,6 +562,10 @@ export default function AdminDashboard() {
                                 ? Math.max((revenue / chartMeta.maxRevenue) * 100, revenue > 0 ? 10 : 0)
                                 : 0;
                               const barColor = chartPalette[index % chartPalette.length];
+                              const gradient = `linear-gradient(180deg, ${toRgba(barColor, 0.95)} 0%, ${toRgba(
+                                barColor,
+                                0.7
+                              )} 65%, ${toRgba(barColor, 0.95)} 100%)`;
 
                               return (
                                 <div key={key} className="flex w-36 flex-col items-center gap-3">
@@ -542,7 +577,7 @@ export default function AdminDashboard() {
                                     >
                                       <div
                                         className="w-full rounded-t-3xl shadow-lg"
-                                        style={{ background: `linear-gradient(180deg, ${barColor} 0%, ${barColor}bf 80%, ${barColor} 100%)` }}
+                                        style={{ background: gradient, border: `1px solid ${toRgba(barColor, 0.35)}`, boxShadow: `0 16px 30px -18px ${toRgba(barColor, 0.85)}` }}
                                       />
                                     </div>
                                   </div>
