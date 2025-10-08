@@ -440,6 +440,18 @@ const UserHistory = () => {
                               <User className="w-4 h-4" />
                               <span>ลูกค้า: {service.customerName}</span>
                             </div>
+                            {(service.status === "rejected" || service.status === "ยกเลิก") &&
+                              (service.cancelReason || service.rejectionReason) && (
+                                <div className="flex items-start space-x-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3 mb-3">
+                                  <AlertCircle className="w-4 h-4 mt-0.5" />
+                                  <div>
+                                    <p className="font-medium">เหตุผลที่ถูกยกเลิก</p>
+                                    <p className="text-red-700">
+                                      {service.cancelReason || service.rejectionReason}
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
                             {service.rating && (
                               <div className="mb-2">
                                 {renderStars(service.rating)}
