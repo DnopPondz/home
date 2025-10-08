@@ -18,7 +18,18 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("userData");
-    if (storedUser) setUser(JSON.parse(storedUser));
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        setUser({
+          ...parsed,
+          workerApplicationStatus: parsed?.workerApplicationStatus || "none",
+        });
+      } catch (error) {
+        console.error("Failed to parse stored user:", error);
+        localStorage.removeItem("userData");
+      }
+    }
   }, []);
 
   const persistUser = (userData) => {
@@ -43,6 +54,8 @@ export const AuthProvider = ({ children }) => {
     const normalizedUser = {
       ...userData,
       userId: normalizedUserId || userData?.userId || userData?._id,
+      workerApplicationStatus:
+        userData?.workerApplicationStatus || "none",
     };
 
     setUser(normalizedUser);
@@ -69,6 +82,8 @@ export const AuthProvider = ({ children }) => {
       const nextUser = {
         ...nextUserRaw,
         userId: normalizeId(nextUserRaw.userId || nextUserRaw._id) || nextUserRaw.userId,
+        workerApplicationStatus:
+          nextUserRaw.workerApplicationStatus || "none",
       };
 
       persistUser(nextUser);

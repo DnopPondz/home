@@ -104,6 +104,7 @@ const LoginPage = () => {
         phone: data.user.phone,
         location: data.user.location,
         role: data.user.role,
+        workerApplicationStatus: data.user.workerApplicationStatus,
       });
 
       // Wait 1.5 seconds to show success icon then redirect

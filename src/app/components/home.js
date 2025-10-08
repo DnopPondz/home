@@ -209,11 +209,11 @@ const HomePage = () => {
               height={1080}
               className="w-full rounded-t-lg h-[200px] object-cover"
             />
-            <div className="flex flex-col flex-1 p-5">
-              <p className="inline-block w-[170px] text-center px-3 py-1 bg-[#e7eeff] text-blue-800 text-sm rounded-lg">
-                Cleaning-Restaurant
-              </p>
-              <p className="mt-3 text-xl font-medium">บริการทำความสะอาด-ร้านอาหาร</p>
+          <div className="flex flex-col flex-1 p-5">
+            <p className="inline-block w-[170px] text-center px-3 py-1 bg-[#e7eeff] text-blue-800 text-sm rounded-lg">
+              Cleaning-Restaurant
+            </p>
+            <p className="mt-3 text-xl font-medium">บริการทำความสะอาด-ร้านอาหาร</p>
               <p className="flex items-center gap-2 mt-2 text-gray-700">
                 <Image
                   src="/home-img/vector.jpg"
@@ -226,6 +226,25 @@ const HomePage = () => {
               <Link href="/page/servicehub" className="mt-auto">
                 <p className="mt-2 text-xl text-blue-500 underline cursor-pointer hover:text-blue-300">
                   เลือกบริการ
+                </p>
+              </Link>
+            </div>
+          </div>
+          {/* worker application */}
+          <div className="w-[343px] flex flex-col border border-blue-200 rounded-lg bg-white shadow-sm">
+            <div className="flex flex-col flex-1 p-5">
+              <p className="inline-block w-[150px] text-center px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-lg">
+                เข้าร่วมทีมเรา
+              </p>
+              <p className="mt-3 text-xl font-medium text-blue-900">
+                สมัครเป็นพนักงานภาคสนาม (Worker)
+              </p>
+              <p className="mt-2 text-gray-700 leading-relaxed">
+                เติมเต็มทีมบริการด้วยความสามารถของคุณ ส่งข้อมูลและเรซูเม่เพื่อให้ผู้ดูแลระบบพิจารณาและอนุมัติบทบาทพนักงาน
+              </p>
+              <Link href="/page/worker-apply" className="mt-auto">
+                <p className="mt-4 text-xl text-blue-500 underline cursor-pointer hover:text-blue-300">
+                  สมัครเป็นพนักงาน
                 </p>
               </Link>
             </div>

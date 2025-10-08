@@ -1,7 +1,22 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit, Trash2, Phone, Mail, MapPin, Calendar, Users, Activity } from 'lucide-react';
+import {
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  Users,
+  Activity,
+  CheckCircle2,
+  XCircle,
+  Download,
+  Loader2,
+} from 'lucide-react';
 import axios from 'axios';
 
 const SettingService = () => {
@@ -11,20 +26,80 @@ const SettingService = () => {
   const [loading, setLoading] = useState(true);
   const [selectedServices, setSelectedServices] = useState([]);
   const [completedJobs, setCompletedJobs] = useState(0);
+  const [applications, setApplications] = useState([]);
+  const [applicationsLoading, setApplicationsLoading] = useState(true);
+  const [processingApplicationId, setProcessingApplicationId] = useState(null);
+  const [actionMessage, setActionMessage] = useState({ type: '', message: '' });
 
+  useEffect(() => {
+    const fetchCompletedJobs = async () => {
+      try {
+        const res = await axios.get("/api/bookings?status=completed");
+        setCompletedJobs(res.data.length);  // สมมติว่า API ส่ง array ของ booking กลับมา
+      } catch (error) {
+        console.error('ไม่สามารถโหลดข้อมูลงานที่เสร็จได้:', error);
+      }
+    };
 
-useEffect(() => {
-  const fetchCompletedJobs = async () => {
+    fetchCompletedJobs();
+  }, []);
+
+  const showActionMessage = (message, type = 'success') => {
+    setActionMessage({ type, message });
+    if (!message) return;
+    setTimeout(() => {
+      setActionMessage((prev) =>
+        prev.message === message ? { type: '', message: '' } : prev
+      );
+    }, 4000);
+  };
+
+  const clearActionMessage = () => setActionMessage({ type: '', message: '' });
+
+  const fetchUsers = async (showLoader = true) => {
     try {
-      const res = await axios.get("/api/bookings?status=completed");
-      setCompletedJobs(res.data.length);  // สมมติว่า API ส่ง array ของ booking กลับมา
+      if (showLoader) {
+        setLoading(true);
+      }
+      const res = await axios.get("/api/users");
+
+      // Filter users with role "worker"
+      const workerUsers = res.data.filter(user =>
+        Array.isArray(user.role)
+          ? user.role.includes('worker')
+          : user.role === 'worker'
+      );
+      setUsers(workerUsers);
+      setFilteredUsers(workerUsers);
     } catch (error) {
-      console.error('ไม่สามารถโหลดข้อมูลงานที่เสร็จได้:', error);
+      console.error('ไม่สามารถโหลดข้อมูลผู้ใช้ได้:', error);
+      showActionMessage('ไม่สามารถโหลดข้อมูลพนักงานได้', 'error');
+    } finally {
+      if (showLoader) {
+        setLoading(false);
+      }
     }
   };
 
-  fetchCompletedJobs();
-}, []);
+  const fetchApplications = async () => {
+    try {
+      setApplicationsLoading(true);
+      const res = await axios.get("/api/worker-applications", {
+        params: { status: 'pending', includeResumeData: true },
+      });
+      setApplications(res.data?.applications || []);
+    } catch (error) {
+      console.error('ไม่สามารถโหลดคำขอสมัครได้:', error);
+      showActionMessage('ไม่สามารถโหลดคำขอสมัครได้', 'error');
+    } finally {
+      setApplicationsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+    fetchApplications();
+  }, []);
 
   const serviceOptions = [
     // 'สีทองสีรี',
@@ -37,28 +112,6 @@ useEffect(() => {
     // 'ติดจัดเจเร่อง',
     'ไม่มีการกรอง'
   ];
-
-  // Fetch users from API
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setLoading(true);
-        const res = await axios.get("/api/users");
-        
-        // Filter users with role "tech"
-        const techUsers = res.data.filter(user => user.role === 'tech');
-        setUsers(techUsers);
-        setFilteredUsers(techUsers);
-      } catch (error) {
-        console.error('ไม่สามารถโหลดข้อมูลผู้ใช้ได้:', error);
-        // showNotification("ไม่สามารถโหลดข้อมูลผู้ใช้ได้", "error");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUsers();
-  }, []);
 
   // Filter users based on search term and selected services
   useEffect(() => {
@@ -82,8 +135,8 @@ useEffect(() => {
   }, [searchTerm, selectedServices, users]);
 
   const handleServiceFilter = (service) => {
-    setSelectedServices(prev => 
-      prev.includes(service) 
+    setSelectedServices(prev =>
+      prev.includes(service)
         ? prev.filter(s => s !== service)
         : [...prev, service]
     );
@@ -97,12 +150,102 @@ useEffect(() => {
     return '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
   };
 
+  const formatDateTime = (value) => {
+    if (!value) return '-';
+    try {
+      return new Date(value).toLocaleString('th-TH', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+    } catch (error) {
+      return '-';
+    }
+  };
+
+  const formatFileSize = (size) => {
+    if (!size || Number.isNaN(size)) return '0 KB';
+    if (size >= 1024 * 1024) {
+      return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+    }
+    return `${Math.max(1, Math.round(size / 1024))} KB`;
+  };
+
+  const hasRole = (user, role) =>
+    Array.isArray(user?.role) ? user.role.includes(role) : user?.role === role;
+
+  const handleApplicationUpdate = async (applicationId, newStatus, adminNote) => {
+    try {
+      setProcessingApplicationId(applicationId);
+      await axios.patch(`/api/worker-applications/${applicationId}`, {
+        status: newStatus,
+        ...(adminNote?.trim() ? { adminNote: adminNote.trim() } : {}),
+      });
+
+      if (newStatus === 'approved') {
+        showActionMessage('อนุมัติคำขอพนักงานเรียบร้อยแล้ว', 'success');
+      } else if (newStatus === 'rejected') {
+        showActionMessage('ปฏิเสธคำขอพนักงานเรียบร้อยแล้ว', 'success');
+      } else {
+        showActionMessage('อัปเดตสถานะคำขอพนักงานแล้ว', 'success');
+      }
+
+      await Promise.all([fetchApplications(), fetchUsers(false)]);
+    } catch (error) {
+      console.error('ไม่สามารถอัปเดตสถานะคำขอได้:', error);
+      const message =
+        error.response?.data?.message || 'ไม่สามารถอัปเดตสถานะคำขอได้';
+      showActionMessage(message, 'error');
+    } finally {
+      setProcessingApplicationId(null);
+    }
+  };
+
+  const handleApproveApplication = (applicationId) => {
+    handleApplicationUpdate(applicationId, 'approved');
+  };
+
+  const handleRejectApplication = (applicationId) => {
+    const note = window.prompt('ระบุเหตุผลในการปฏิเสธ (ไม่บังคับ)');
+    handleApplicationUpdate(applicationId, 'rejected', note || undefined);
+  };
+
+  const handleDownloadResume = (application) => {
+    try {
+      const resume = application?.resume;
+      if (!resume?.data) {
+        showActionMessage('ไม่พบไฟล์เรซูเม่สำหรับคำขอนี้', 'error');
+        return;
+      }
+
+      const byteCharacters = atob(resume.data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i += 1) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], {
+        type: resume.contentType || 'application/octet-stream',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = resume.filename || 'resume';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download resume error:', error);
+      showActionMessage('ไม่สามารถดาวน์โหลดไฟล์เรซูเม่ได้', 'error');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">กำลังโหลดข้อมูลช่าง...</p>
+          <p className="mt-4 text-gray-600">กำลังโหลดข้อมูลพนักงาน...</p>
         </div>
       </div>
     );
@@ -113,8 +256,118 @@ useEffect(() => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">จัดการข้อมูลช่าง</h1>
-          <p className="text-gray-600">รายการช่างทั้งหมด จัดการข้อมูลและบริการของช่าง</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">จัดการพนักงานภาคสนาม</h1>
+          <p className="text-gray-600">ตรวจสอบคำขอสมัครและจัดการข้อมูลพนักงานที่พร้อมให้บริการลูกค้า</p>
+        </div>
+
+        {actionMessage.message && (
+          <div
+            className={`mb-6 border rounded-lg px-4 py-3 ${
+              actionMessage.type === 'error'
+                ? 'border-red-200 bg-red-50 text-red-700'
+                : actionMessage.type === 'success'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : 'border-blue-200 bg-blue-50 text-blue-700'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <p className="text-sm font-medium">{actionMessage.message}</p>
+              <button
+                onClick={clearActionMessage}
+                className="text-xs uppercase tracking-wide font-semibold"
+              >
+                ปิด
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-white rounded-lg shadow mb-8 p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                คำขอสมัครพนักงานที่รอตรวจสอบ
+              </h2>
+              <p className="text-sm text-gray-500">
+                ตรวจสอบประวัติและอนุมัติผู้สมัครเพื่อเพิ่มจำนวนพนักงานภาคสนาม
+              </p>
+            </div>
+            {!applicationsLoading && (
+              <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm font-medium">
+                {applications.length} รายการที่รอตรวจสอบ
+              </span>
+            )}
+          </div>
+
+          {applicationsLoading ? (
+            <div className="flex items-center justify-center py-10 text-blue-600">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : applications.length === 0 ? (
+            <div className="border border-dashed border-gray-200 rounded-lg p-8 text-center text-gray-500">
+              ยังไม่มีคำขอสมัครใหม่ในขณะนี้
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {applications.map((application) => (
+                <div
+                  key={application._id}
+                  className="border border-gray-200 rounded-lg p-4"
+                >
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {application.firstName} {application.lastName}
+                      </h3>
+                      <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-600">
+                        <span className="flex items-center gap-2">
+                          <Mail className="h-4 w-4" /> {application.email}
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <Phone className="h-4 w-4" /> {application.phone}
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" /> ส่งเมื่อ {formatDateTime(application.createdAt)}
+                        </span>
+                      </div>
+                      {application.resume?.filename && (
+                        <div className="mt-2 text-sm text-gray-500">
+                          ไฟล์เรซูเม่: {application.resume.filename}
+                          {application.resume.size ? ` • ${formatFileSize(application.resume.size)}` : ''}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadResume(application)}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <Download className="h-4 w-4" /> ดาวน์โหลดเรซูเม่
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApproveApplication(application._id)}
+                        disabled={processingApplicationId === application._id}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        {processingApplicationId === application._id ? 'กำลังดำเนินการ...' : 'อนุมัติ'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRejectApplication(application._id)}
+                        disabled={processingApplicationId === application._id}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <XCircle className="h-4 w-4" /> ปฏิเสธ
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Stats Cards */}
@@ -123,7 +376,7 @@ useEffect(() => {
             <div className="flex items-center">
               <Users className="h-8 w-8 text-blue-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">ช่างทั้งหมด</p>
+                <p className="text-sm font-medium text-gray-600">พนักงานทั้งหมด</p>
                 <p className="text-2xl font-bold text-gray-900">{users.length}</p>
               </div>
             </div>
@@ -132,7 +385,7 @@ useEffect(() => {
             <div className="flex items-center">
               <Activity className="h-8 w-8 text-green-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">ช่างที่ใช้งาน</p>
+                <p className="text-sm font-medium text-gray-600">พนักงานที่พร้อมรับงาน</p>
                 <p className="text-2xl font-bold text-gray-900">{users.length}</p>
               </div>
             </div>
@@ -142,9 +395,7 @@ useEffect(() => {
               <Calendar className="h-8 w-8 text-purple-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">งานที่เสร็จ</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {users.reduce((sum, user) => sum + (completedJobs || 0), 0)}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{completedJobs}</p>
               </div>
             </div>
           </div>
@@ -183,7 +434,7 @@ useEffect(() => {
             </div>
             {/* <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
               <Plus className="h-4 w-4" />
-              เพิ่มช่างใหม่
+              เพิ่มพนักงานใหม่
             </button> */}
           </div>
 
@@ -208,7 +459,7 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* Technicians Grid */}
+        {/* Workers Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredUsers.map(user => (
             <div key={user._id || user.id} className="bg-white rounded-lg shadow hover:shadow-md transition-shadow">
@@ -308,7 +559,7 @@ useEffect(() => {
             <div className="text-gray-400 mb-4">
               <Users className="h-16 w-16 mx-auto" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">ไม่พบช่างที่ตรงกับเงื่อนไขการค้นหา</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">ไม่พบพนักงานที่ตรงกับเงื่อนไขการค้นหา</h3>
             <p className="text-gray-600">ลองเปลี่ยนคำค้นหาหรือเครื่องมือกรองข้อมูล</p>
           </div>
         )}

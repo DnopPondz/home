@@ -77,6 +77,7 @@ body.append("image", base64Image)
       createdAt: new Date(),
       updatedAt: new Date(),
       role,
+      workerApplicationStatus: "none",
     })
 
     return new Response(JSON.stringify({ message: "User registered", userId: result.insertedId }), { status: 201 })
