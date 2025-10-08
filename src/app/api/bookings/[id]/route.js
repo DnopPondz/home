@@ -66,7 +66,7 @@ export async function PATCH(req, { params }) {
   try {
     const { id } = params;
     const body = await req.json();
-    const { status, assignedTo } = body;
+    const { status, assignedTo, completionPhotos } = body;
 
     console.log('PATCH Request - ID:', id, 'Body:', body); // เพิ่ม logging
 
@@ -81,9 +81,86 @@ export async function PATCH(req, { params }) {
     const db = client.db("myDB");
     const bookings = db.collection("bookings");
 
-    const updateData = { status };
+    const updateData = {};
+    if (typeof status === "string" && status) {
+      updateData.status = status;
+    }
     if (assignedTo && ObjectId.isValid(assignedTo)) {
       updateData.assignedTo = new ObjectId(assignedTo);
+    }
+
+    if (status === "completed") {
+      if (!Array.isArray(completionPhotos) || completionPhotos.length < 3) {
+        return new Response(
+          JSON.stringify({ message: "จำเป็นต้องอัปโหลดรูปหลังทำความสะอาดอย่างน้อย 3 รูป" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const sanitizedPhotos = completionPhotos
+        .map((photo) => {
+          if (!photo || typeof photo !== "object") return null;
+
+          const rawData =
+            typeof photo.data === "string"
+              ? photo.data
+              : typeof photo.base64 === "string"
+              ? photo.base64
+              : typeof photo.dataUrl === "string"
+              ? photo.dataUrl
+              : "";
+
+          let base64Data = rawData;
+          if (base64Data.startsWith("data:")) {
+            base64Data = base64Data.split(",", 2)[1] || "";
+          }
+
+          if (!base64Data) return null;
+
+          const contentType =
+            typeof photo.contentType === "string"
+              ? photo.contentType
+              : typeof photo.type === "string"
+              ? photo.type
+              : "image/jpeg";
+
+          const sanitized = {
+            data: base64Data,
+            contentType,
+            filename:
+              typeof photo.filename === "string"
+                ? photo.filename
+                : typeof photo.name === "string"
+                ? photo.name
+                : null,
+            uploadedAt: photo.uploadedAt ? new Date(photo.uploadedAt) : new Date(),
+          };
+
+          if (typeof photo.size === "number") {
+            sanitized.size = photo.size;
+          }
+
+          return sanitized;
+        })
+        .filter(Boolean);
+
+      if (sanitizedPhotos.length < 3) {
+        return new Response(
+          JSON.stringify({ message: "รูปภาพไม่ถูกต้องหรือมีจำนวนไม่ครบตามที่กำหนด" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const completedAt = new Date();
+      updateData.completionPhotos = sanitizedPhotos;
+      updateData.completedDate = completedAt;
+      updateData.completedAt = completedAt;
     }
 
     console.log('Update Data:', updateData); // เพิ่ม logging

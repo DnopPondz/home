@@ -24,6 +24,52 @@ const normalizeId = (value) => {
   return `${value}`;
 };
 
+const normalizeCompletionPhoto = (photo) => {
+  if (!photo || typeof photo !== "object") return null;
+
+  let dataUrl = typeof photo.dataUrl === "string" ? photo.dataUrl : "";
+  let base64Data = typeof photo.data === "string" ? photo.data : "";
+
+  if (!base64Data && typeof photo.base64 === "string") {
+    base64Data = photo.base64;
+  }
+
+  if (base64Data && base64Data.startsWith("data:")) {
+    dataUrl = base64Data;
+    base64Data = base64Data.split(",", 2)[1] || "";
+  }
+
+  if (!base64Data && dataUrl) {
+    base64Data = dataUrl.split(",", 2)[1] || "";
+  }
+
+  if (!base64Data) return null;
+
+  let contentType = "image/jpeg";
+  if (typeof photo.contentType === "string") {
+    contentType = photo.contentType;
+  } else if (typeof photo.type === "string") {
+    contentType = photo.type;
+  } else if (dataUrl) {
+    const match = dataUrl.match(/data:(.*);base64/);
+    if (match?.[1]) {
+      contentType = match[1];
+    }
+  }
+
+  if (!dataUrl) {
+    dataUrl = `data:${contentType};base64,${base64Data}`;
+  }
+
+  return {
+    data: base64Data,
+    contentType,
+    dataUrl,
+    filename: typeof photo.filename === "string" ? photo.filename : typeof photo.name === "string" ? photo.name : "",
+    uploadedAt: photo.uploadedAt || photo.createdAt || null,
+  };
+};
+
 const renderStaticStars = (rating) => {
   if (!rating) return null;
   return (
@@ -91,6 +137,9 @@ const UserReviewPage = () => {
           const userId = normalizeId(item.userId);
           const reviewText = item.review ?? item.reviewDetail?.comment ?? "";
           const ratingValue = item.rating ?? item.reviewDetail?.rating ?? 0;
+          const completionPhotos = Array.isArray(item.completionPhotos)
+            ? item.completionPhotos.map(normalizeCompletionPhoto).filter(Boolean)
+            : [];
 
           return {
             ...item,
@@ -102,6 +151,8 @@ const UserReviewPage = () => {
             review: reviewText,
             reviewedAt: item.reviewedAt ?? item.reviewDetail?.updatedAt ?? null,
             serviceDetails: item.serviceDetails ?? {},
+            completionPhotos,
+            completedAt: item.completedAt ?? item.completedDate ?? null,
           };
         });
 
@@ -239,6 +290,31 @@ const UserReviewPage = () => {
 
   const getBookingTime = (booking) =>
     booking?.bookingTime || booking?.time || booking?.serviceTime || "";
+
+  const getCompletionPhotoUrl = (photo) => {
+    if (!photo) return "";
+    if (typeof photo === "string") return photo;
+
+    if (photo.dataUrl && typeof photo.dataUrl === "string") {
+      return photo.dataUrl;
+    }
+
+    const rawData =
+      typeof photo.data === "string"
+        ? photo.data
+        : typeof photo.base64 === "string"
+        ? photo.base64
+        : "";
+
+    if (!rawData) return "";
+
+    if (rawData.startsWith("data:")) {
+      return rawData;
+    }
+
+    const contentType = photo.contentType || photo.type || "image/jpeg";
+    return `data:${contentType};base64,${rawData}`;
+  };
 
   if (!user) {
     return (
@@ -463,6 +539,33 @@ const UserReviewPage = () => {
                               {getAddress(booking)}
                             </span>
                           </div>
+                          {Array.isArray(booking.completionPhotos) &&
+                            booking.completionPhotos.length > 0 && (
+                              <div className="mt-4">
+                                <p className="text-xs font-medium text-gray-600 mb-2">
+                                  รูปหลังทำความสะอาด
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  {booking.completionPhotos.slice(0, 3).map((photo, index) => {
+                                    const preview = getCompletionPhotoUrl(photo);
+                                    if (!preview) return null;
+                                    return (
+                                      <img
+                                        key={`${booking.bookingId}-thumb-${index}`}
+                                        src={preview}
+                                        alt={`รูปหลังทำความสะอาด ${index + 1}`}
+                                        className="w-12 h-12 rounded-lg object-cover border border-gray-200 shadow-sm"
+                                      />
+                                    );
+                                  })}
+                                  {booking.completionPhotos.length > 3 && (
+                                    <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
+                                      +{booking.completionPhotos.length - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                         </div>
                         <div className="text-right space-y-3">
                           {booking.rating ? (
@@ -517,6 +620,45 @@ const UserReviewPage = () => {
                   </div>
                   <CheckCircle2 className="w-8 h-8 text-green-500" />
                 </div>
+
+                {Array.isArray(selectedBooking.completionPhotos) &&
+                  selectedBooking.completionPhotos.length > 0 ? (
+                  <div className="mt-6">
+                    <h4 className="text-sm font-semibold text-gray-700">
+                      รูปหลังทำความสะอาดจากทีมช่าง
+                    </h4>
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {selectedBooking.completionPhotos.map((photo, index) => {
+                        const preview = getCompletionPhotoUrl(photo);
+                        if (!preview) return null;
+                        return (
+                          <div
+                            key={`${selectedBooking.bookingId}-photo-${index}`}
+                            className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50 shadow-sm"
+                          >
+                            <img
+                              src={preview}
+                              alt={`รูปหลังทำความสะอาด ${index + 1}`}
+                              className="w-full h-48 object-cover"
+                            />
+                            <div className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-xs px-3 py-2 flex items-center justify-between gap-2">
+                              <span>รูปที่ {index + 1}</span>
+                              {photo.filename && (
+                                <span className="truncate max-w-[60%] opacity-90">
+                                  {photo.filename}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-6 border border-dashed border-gray-200 rounded-lg p-4 text-sm text-gray-500 bg-gray-50">
+                    ยังไม่มีรูปหลังทำความสะอาดสำหรับงานนี้
+                  </div>
+                )}
 
                 {feedback && (
                   <div
