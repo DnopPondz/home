@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
 // pages/admin/dashboard.js หรือ app/admin/dashboard/page.js
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import NavigationSwitcher from '../../../components/NavigationSwitcher';
 
@@ -22,6 +22,47 @@ export default function AdminDashboard() {
   });
 
   const [lastUpdated, setLastUpdated] = useState('');
+  const [salesRange, setSalesRange] = useState('month');
+  const [salesData, setSalesData] = useState({
+    services: [],
+    totalRevenue: 0,
+    totalBookings: 0,
+    startDate: null,
+    endDate: null,
+    loading: true,
+    error: null
+  });
+
+  const formatCurrency = (value) => {
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      return '฿0';
+    }
+
+    return value.toLocaleString('th-TH', {
+      style: 'currency',
+      currency: 'THB',
+      minimumFractionDigits: 0
+    });
+  };
+
+  const formatDateRange = (start, end) => {
+    if (!start || !end) return '';
+
+    const options = {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    };
+
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      return '';
+    }
+
+    return `${startDate.toLocaleDateString('th-TH', options)} - ${endDate.toLocaleDateString('th-TH', options)}`;
+  };
 
   // ฟังก์ชันดึงข้อมูลจาก API
   const fetchDashboardData = async () => {
@@ -101,15 +142,66 @@ export default function AdminDashboard() {
     }
   };
 
+  const loadSalesData = useCallback(async (range) => {
+    try {
+      setSalesData(prev => ({ ...prev, loading: true, error: null }));
+
+      const response = await axios.get('/api/admin/sales', {
+        params: { range }
+      });
+
+      const {
+        services = [],
+        totalRevenue = 0,
+        totalBookings = 0,
+        startDate = null,
+        endDate = null
+      } = response.data || {};
+
+      setSalesData({
+        services,
+        totalRevenue,
+        totalBookings,
+        startDate,
+        endDate,
+        loading: false,
+        error: null
+      });
+    } catch (error) {
+      console.error('Error fetching sales data:', error);
+      setSalesData(prev => ({
+        ...prev,
+        loading: false,
+        error: 'เกิดข้อผิดพลาดในการโหลดข้อมูลยอดขาย'
+      }));
+    }
+  }, []);
+
   // โหลดข้อมูลเมื่อ component mount
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
+  useEffect(() => {
+    loadSalesData(salesRange);
+  }, [salesRange, loadSalesData]);
+
   // ฟังก์ชันรีเฟรชข้อมูล
   const handleRefresh = () => {
     fetchDashboardData();
+    loadSalesData(salesRange);
   };
+
+  const timeRangeOptions = [
+    { value: 'week', label: '7 วัน' },
+    { value: 'month', label: '1 เดือน' },
+    { value: 'year', label: '1 ปี' }
+  ];
+
+  const maxRevenue = salesData.services.reduce((max, service) => {
+    const revenue = typeof service.totalRevenue === 'number' ? service.totalRevenue : 0;
+    return revenue > max ? revenue : max;
+  }, 0);
 
   return (
     <div>
@@ -128,10 +220,10 @@ export default function AdminDashboard() {
                 </div>
                 <button
                   onClick={handleRefresh}
-                  disabled={dashboardData.loading}
+                  disabled={dashboardData.loading || salesData.loading}
                   className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg transition-colors"
                 >
-                  {dashboardData.loading ? 'กำลังโหลด...' : 'รีเฟรช'}
+                  {dashboardData.loading || salesData.loading ? 'กำลังโหลด...' : 'รีเฟรช'}
                 </button>
               </div>
             </div>
@@ -254,6 +346,94 @@ export default function AdminDashboard() {
                     </p>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Sales Overview */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">ยอดขายตามบริการ</h3>
+                  <p className="text-sm text-gray-500">
+                    {formatDateRange(salesData.startDate, salesData.endDate) || 'เลือกช่วงเวลาที่ต้องการดูยอดขาย'}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {timeRangeOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setSalesRange(option.value)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                        salesRange === option.value
+                          ? 'bg-blue-600 text-white border-blue-600 shadow'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600'
+                      }`}
+                      disabled={salesData.loading && salesRange === option.value}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">ยอดขายรวม</p>
+                  <p className="mt-1 text-2xl font-bold text-blue-900">{formatCurrency(salesData.totalRevenue)}</p>
+                </div>
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">จำนวนคำสั่งจอง</p>
+                  <p className="mt-1 text-2xl font-bold text-green-900">{Number(salesData.totalBookings || 0).toLocaleString('th-TH')}</p>
+                </div>
+                <div className="p-4 bg-indigo-50 rounded-lg md:col-span-1">
+                  <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">บริการที่มีคำสั่งจอง</p>
+                  <p className="mt-1 text-2xl font-bold text-indigo-900">{salesData.services.length.toLocaleString('th-TH')}</p>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                {salesData.loading ? (
+                  <div className="h-56 flex items-center justify-center text-gray-500">กำลังโหลดข้อมูลยอดขาย...</div>
+                ) : salesData.error ? (
+                  <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
+                    {salesData.error}
+                  </div>
+                ) : salesData.services.length === 0 ? (
+                  <div className="h-56 flex flex-col items-center justify-center text-gray-500 text-sm">
+                    <p>ไม่มีข้อมูลยอดขายในช่วงเวลาที่เลือก</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <div className="flex items-end gap-6 min-h-[14rem] pb-6">
+                      {salesData.services.map((service) => {
+                        const revenue = typeof service.totalRevenue === 'number' ? service.totalRevenue : 0;
+                        const bookingsCount = Number(service.totalBookings || 0);
+                        const key = service.serviceId || service.serviceName;
+                        const heightPercent = maxRevenue > 0 ? Math.max((revenue / maxRevenue) * 100, revenue > 0 ? 8 : 0) : 0;
+
+                        return (
+                          <div key={key} className="flex flex-col items-center flex-1 min-w-[120px]">
+                            <span className="text-xs text-gray-500 font-medium mb-2">
+                              {formatCurrency(revenue)}
+                            </span>
+                            <div className="w-full max-w-[120px] h-48 bg-blue-50 rounded-lg relative overflow-hidden">
+                              <div className="absolute inset-x-4 bottom-0 flex justify-center">
+                                <div
+                                  className="w-full rounded-t-lg bg-gradient-to-t from-blue-600 via-blue-500 to-blue-400 shadow-md"
+                                  style={{ height: `${Math.min(heightPercent, 100)}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                            <div className="mt-3 text-center">
+                              <p className="text-sm font-semibold text-gray-700 break-words">{service.serviceName || 'ไม่ระบุบริการ'}</p>
+                              <p className="text-xs text-gray-500 mt-1">{bookingsCount.toLocaleString('th-TH')} งาน</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
