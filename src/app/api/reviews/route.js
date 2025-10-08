@@ -104,6 +104,8 @@ export async function GET(req) {
           time: 1,
           address: 1,
           customerLocation: 1,
+          completionPhotos: 1,
+          completedAt: 1,
           rating: 1,
           review: 1,
           reviewDetail: 1,
