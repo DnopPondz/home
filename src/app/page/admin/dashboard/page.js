@@ -185,59 +185,42 @@ export default function AdminDashboard() {
   ], []);
 
   const chartPalette = useMemo(
-    () => ['#e74c3c', '#f39c12', '#9b59b6', '#27ae60', '#3498db', '#ff6b6b', '#16a085', '#e67e22'],
+    () => ['#f97316', '#22c55e', '#facc15', '#0ea5e9', '#6366f1', '#ec4899', '#14b8a6', '#ef4444'],
     []
   );
-
-  const toRgba = useCallback((hex, alpha = 1) => {
-    if (typeof hex !== 'string') return `rgba(56, 189, 248, ${alpha})`;
-
-    let sanitized = hex.trim();
-
-    if (sanitized.startsWith('#')) {
-      sanitized = sanitized.slice(1);
-    }
-
-    if (sanitized.length === 3) {
-      sanitized = sanitized
-        .split('')
-        .map((char) => char + char)
-        .join('');
-    }
-
-    if (sanitized.length !== 6) {
-      return `rgba(56, 189, 248, ${alpha})`;
-    }
-
-    const r = parseInt(sanitized.slice(0, 2), 16);
-    const g = parseInt(sanitized.slice(2, 4), 16);
-    const b = parseInt(sanitized.slice(4, 6), 16);
-
-    if ([r, g, b].some((value) => Number.isNaN(value))) {
-      return `rgba(56, 189, 248, ${alpha})`;
-    }
-
-    return `rgba(${r}, ${g}, ${b}, ${Math.min(Math.max(alpha, 0), 1)})`;
-  }, []);
 
   const chartMeta = useMemo(() => {
     const numericRevenues = salesData.services.map((service) =>
       typeof service.totalRevenue === 'number' ? service.totalRevenue : 0
     );
 
-    const maxRevenue = numericRevenues.reduce((max, revenue) => (revenue > max ? revenue : max), 0);
+    const rawMax = numericRevenues.reduce((max, revenue) => (revenue > max ? revenue : max), 0);
 
-    if (maxRevenue <= 0) {
-      return { maxRevenue: 0, step: 0, gridLines: [] };
+    if (rawMax <= 0) {
+      return { axisMax: 0, ticks: [] };
     }
 
-    const divisions = 4;
-    const rawStep = maxRevenue / divisions;
-    const gridLines = Array.from({ length: divisions + 1 }, (_, index) =>
-      index === divisions ? maxRevenue : rawStep * index
+    const niceNumber = (value) => {
+      if (value <= 0) return 0;
+      const exponent = Math.floor(Math.log10(value));
+      const fraction = value / 10 ** exponent;
+      let niceFraction;
+
+      if (fraction <= 1) niceFraction = 1;
+      else if (fraction <= 2) niceFraction = 2;
+      else if (fraction <= 5) niceFraction = 5;
+      else niceFraction = 10;
+
+      return niceFraction * 10 ** exponent;
+    };
+
+    const axisMax = niceNumber(rawMax);
+    const tickStep = axisMax / 4;
+    const ticks = Array.from({ length: 5 }, (_, index) =>
+      index === 4 ? axisMax : Math.round(tickStep * index)
     );
 
-    return { maxRevenue, step: rawStep, gridLines };
+    return { axisMax, ticks };
   }, [salesData.services]);
 
   const statCards = useMemo(
@@ -519,58 +502,50 @@ export default function AdminDashboard() {
                         <p className="text-xs uppercase tracking-widest text-rose-500">จำนวนยอดขาย (บาท)</p>
                       </div>
                       <div className="relative mt-4 grid grid-cols-[60px_minmax(0,1fr)] gap-4">
-                        <div className="flex flex-col justify-between py-2 text-right text-xs font-semibold text-slate-400">
-                          {chartMeta.gridLines
+                        <div className="flex h-72 flex-col justify-between py-2 pr-3 text-right text-xs font-semibold text-slate-400">
+                          {chartMeta.ticks
                             .slice()
                             .reverse()
                             .map((value) => (
                               <span key={`axis-${value}`}>{value === 0 ? '0' : formatCurrency(value).replace('฿', '')}</span>
                             ))}
                         </div>
-                        <div className="relative overflow-hidden">
-                          <div className="absolute inset-0 flex flex-col justify-between py-2">
-                            {chartMeta.gridLines
-                              .slice()
-                              .reverse()
-                              .map((value, index) => (
-                                <div
-                                  key={`grid-${value}-${index}`}
-                                  className={`h-px w-full ${index === chartMeta.gridLines.length - 1 ? 'opacity-0' : 'bg-slate-100'}`}
-                                />
-                              ))}
+                        <div className="relative">
+                          <div className="absolute inset-x-0 bottom-0 top-0">
+                            <div className="flex h-72 flex-col justify-between">
+                              {chartMeta.ticks
+                                .slice()
+                                .reverse()
+                                .map((value, index) => (
+                                  <div
+                                    key={`grid-${value}-${index}`}
+                                    className={`flex-1 ${index === chartMeta.ticks.length - 1 ? 'border-b-2 border-slate-400' : 'border-b border-dashed border-slate-200/80'}`}
+                                  />
+                                ))}
+                            </div>
+                            <div className="absolute inset-y-0 left-0 w-px bg-slate-400" />
                           </div>
-                          <div className="relative flex items-end justify-around gap-4 pb-6">
+                          <div className="relative flex h-72 items-end justify-around px-6 pb-10">
                             {salesData.services.map((service, index) => {
                               const revenue = typeof service.totalRevenue === 'number' ? service.totalRevenue : 0;
                               const bookingsCount = Number(service.totalBookings || 0);
                               const key = service.serviceId || service.serviceName || index;
-                              const heightPercent = chartMeta.maxRevenue > 0
-                                ? (revenue / chartMeta.maxRevenue) * 100
-                                : 0;
-                              const boundedHeight = Math.min(Math.max(heightPercent, 0), 100);
-                              const fillHeight = revenue > 0
-                                ? Math.max(boundedHeight, 4)
-                                : 0;
+                              const heightPercent = chartMeta.axisMax > 0 ? (revenue / chartMeta.axisMax) * 100 : 0;
+                              const fillHeight = Math.min(Math.max(heightPercent, 0), 100);
                               const barColor = chartPalette[index % chartPalette.length];
-                              const gradient = `linear-gradient(180deg, ${toRgba(barColor, 0.95)} 0%, ${toRgba(
-                                barColor,
-                                0.7
-                              )} 65%, ${toRgba(barColor, 0.95)} 100%)`;
 
                               return (
-                                <div key={key} className="flex w-36 flex-col items-center gap-3">
-                                  <div className="text-xs font-semibold text-slate-500">{formatCurrency(revenue)}</div>
-                                  <div className="flex h-48 w-full items-end">
-                                    <div
-                                      className="relative flex h-full w-full items-end justify-center rounded-t-3xl"
-                                    >
+                                <div key={key} className="flex w-28 flex-col items-center gap-3">
+                                  <div className="rounded-md bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow">
+                                    {formatCurrency(revenue)}
+                                  </div>
+                                  <div className="flex h-full w-full items-end justify-center">
+                                    <div className="flex h-full w-12 items-end justify-center">
                                       <div
-                                        className="w-full rounded-t-3xl shadow-lg transition-[height] duration-500"
+                                        className="w-full rounded-t-[6px] border border-slate-900/20 bg-current shadow-md transition-[height] duration-500"
                                         style={{
                                           height: `${fillHeight}%`,
-                                          background: gradient,
-                                          border: `1px solid ${toRgba(barColor, 0.35)}`,
-                                          boxShadow: `0 16px 30px -18px ${toRgba(barColor, 0.85)}`
+                                          backgroundColor: barColor
                                         }}
                                       />
                                     </div>
