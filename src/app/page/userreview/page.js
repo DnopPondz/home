@@ -8,6 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import axios from "axios";
 import {
@@ -111,9 +112,12 @@ const UserReviewPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [existingReviewPhotos, setExistingReviewPhotos] = useState([]);
   const [reviewPhotoUploads, setReviewPhotoUploads] = useState([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [isPortalReady, setIsPortalReady] = useState(false);
 
   const reviewPhotoUploadsRef = useRef([]);
   reviewPhotoUploadsRef.current = reviewPhotoUploads;
+  const reviewPhotoInputRef = useRef(null);
 
   const resetReviewPhotoUploads = useCallback(() => {
     setReviewPhotoUploads((prev) => {
@@ -124,6 +128,13 @@ const UserReviewPage = () => {
       });
       return [];
     });
+    if (reviewPhotoInputRef.current) {
+      reviewPhotoInputRef.current.value = "";
+    }
+  }, []);
+
+  useEffect(() => {
+    setIsPortalReady(true);
   }, []);
 
   useEffect(() => {
@@ -135,6 +146,20 @@ const UserReviewPage = () => {
       });
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+
+    if (showReviewModal) {
+      const previousOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = previousOverflow;
+      };
+    }
+
+    return undefined;
+  }, [showReviewModal]);
 
   const completedCount = useMemo(
     () => bookings.filter((booking) => Boolean(booking.rating)).length,
@@ -222,6 +247,7 @@ const UserReviewPage = () => {
     setHoverRating(0);
     setComment(booking.review || "");
     setFeedback(null);
+    setShowReviewModal(true);
   };
 
   const selectedBooking = useMemo(
@@ -242,6 +268,12 @@ const UserReviewPage = () => {
       setExistingReviewPhotos([]);
     }
   }, [selectedBooking]);
+
+  useEffect(() => {
+    if (showReviewModal && !selectedBooking) {
+      setShowReviewModal(false);
+    }
+  }, [showReviewModal, selectedBooking]);
 
   const handleRemoveExistingPhoto = (index) => {
     setExistingReviewPhotos((prev) => prev.filter((_, idx) => idx !== index));
@@ -369,6 +401,7 @@ const UserReviewPage = () => {
     setFeedback(null);
     setExistingReviewPhotos([]);
     resetReviewPhotoUploads();
+    setShowReviewModal(false);
   };
 
   const handleSubmit = async (event) => {
@@ -863,218 +896,252 @@ const UserReviewPage = () => {
               </div>
             </div>
 
-            {selectedBooking && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800">
-                      รีวิวบริการ: {getServiceTitle(selectedBooking)}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      {getBookingDate(selectedBooking)}
-                      {getBookingTime(selectedBooking)
-                        ? ` เวลา ${getBookingTime(selectedBooking)}`
-                        : ""}
-                    </p>
-                  </div>
-                  <CheckCircle2 className="w-8 h-8 text-green-500" />
-                </div>
+            {selectedBooking && isPortalReady && showReviewModal &&
+              createPortal(
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
+                  <div
+                    className="absolute inset-0 bg-black/50"
+                    onClick={handleCancelReview}
+                  />
+                  <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-2xl">
+                    <div className="absolute top-4 right-4">
+                      <button
+                        type="button"
+                        onClick={handleCancelReview}
+                        className="rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 focus:outline-none"
+                        aria-label="ปิดหน้าต่างรีวิว"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <div className="p-6 sm:p-8">
+                      <div className="flex justify-between items-center mb-6">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-800">
+                            รีวิวบริการ: {getServiceTitle(selectedBooking)}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {getBookingDate(selectedBooking)}
+                            {getBookingTime(selectedBooking)
+                              ? ` เวลา ${getBookingTime(selectedBooking)}`
+                              : ""}
+                          </p>
+                        </div>
+                        <CheckCircle2 className="w-8 h-8 text-green-500" />
+                      </div>
 
-                {Array.isArray(selectedBooking.completionPhotos) &&
-                  selectedBooking.completionPhotos.length > 0 ? (
-                  <div className="mt-6">
-                    <h4 className="text-sm font-semibold text-gray-700">
-                      รูปหลังทำความสะอาดจากทีมช่าง
-                    </h4>
-                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {selectedBooking.completionPhotos.map((photo, index) => {
-                        const preview = getCompletionPhotoUrl(photo);
-                        if (!preview) return null;
-                        return (
-                          <div
-                            key={`${selectedBooking.bookingId}-photo-${index}`}
-                            className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50 shadow-sm"
-                          >
-                            <img
-                              src={preview}
-                              alt={`รูปหลังทำความสะอาด ${index + 1}`}
-                              className="w-full h-48 object-cover"
-                            />
-                            <div className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-xs px-3 py-2 flex items-center justify-between gap-2">
-                              <span>รูปที่ {index + 1}</span>
-                              {photo.filename && (
-                                <span className="truncate max-w-[60%] opacity-90">
-                                  {photo.filename}
-                                </span>
-                              )}
+                      {Array.isArray(selectedBooking.completionPhotos) &&
+                      selectedBooking.completionPhotos.length > 0 ? (
+                        <div className="mt-6">
+                          <h4 className="text-sm font-semibold text-gray-700">
+                            รูปหลังทำความสะอาดจากทีมช่าง
+                          </h4>
+                          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {selectedBooking.completionPhotos.map((photo, index) => {
+                              const preview = getCompletionPhotoUrl(photo);
+                              if (!preview) return null;
+                              return (
+                                <div
+                                  key={`${selectedBooking.bookingId}-photo-${index}`}
+                                  className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50 shadow-sm"
+                                >
+                                  <img
+                                    src={preview}
+                                    alt={`รูปหลังทำความสะอาด ${index + 1}`}
+                                    className="w-full h-48 object-cover"
+                                  />
+                                  <div className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-xs px-3 py-2 flex items-center justify-between gap-2">
+                                    <span>รูปที่ {index + 1}</span>
+                                    {photo.filename && (
+                                      <span className="truncate max-w-[60%] opacity-90">
+                                        {photo.filename}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-6 border border-dashed border-gray-200 rounded-lg p-4 text-sm text-gray-500 bg-gray-50">
+                          ยังไม่มีรูปหลังทำความสะอาดสำหรับงานนี้
+                        </div>
+                      )}
+
+                      {Array.isArray(existingReviewPhotos) &&
+                        existingReviewPhotos.length > 0 && (
+                          <div className="mt-6">
+                            <h4 className="text-sm font-semibold text-gray-700">
+                              รูปจากรีวิวของคุณ
+                            </h4>
+                            <p className="text-xs text-gray-500 mt-1">
+                              คุณสามารถลบรูปที่ไม่ต้องการได้ก่อนบันทึก
+                            </p>
+                            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {existingReviewPhotos.map((photo, index) => {
+                                const preview = getCompletionPhotoUrl(photo);
+                                if (!preview) return null;
+                                return (
+                                  <div
+                                    key={`existing-review-photo-${index}`}
+                                    className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50 shadow-sm group"
+                                  >
+                                    <img
+                                      src={preview}
+                                      alt={`รูปรีวิว ${index + 1}`}
+                                      className="w-full h-48 object-cover"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveExistingPhoto(index)}
+                                      className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                                      aria-label="ลบรูปรีวิว"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                    <div className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-xs px-3 py-2 flex items-center justify-between gap-2">
+                                      <span>รูปที่ {index + 1}</span>
+                                      {photo.filename && (
+                                        <span className="truncate max-w-[60%] opacity-90">
+                                          {photo.filename}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-6 border border-dashed border-gray-200 rounded-lg p-4 text-sm text-gray-500 bg-gray-50">
-                    ยังไม่มีรูปหลังทำความสะอาดสำหรับงานนี้
-                  </div>
-                )}
+                        )}
 
-                {Array.isArray(existingReviewPhotos) &&
-                  existingReviewPhotos.length > 0 && (
-                    <div className="mt-6">
-                      <h4 className="text-sm font-semibold text-gray-700">
-                        รูปจากรีวิวของคุณ
-                      </h4>
-                      <p className="text-xs text-gray-500 mt-1">
-                        คุณสามารถลบรูปที่ไม่ต้องการได้ก่อนบันทึก
-                      </p>
-                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {existingReviewPhotos.map((photo, index) => {
-                          const preview = getCompletionPhotoUrl(photo);
-                          if (!preview) return null;
-                          return (
-                            <div
-                              key={`existing-review-photo-${index}`}
-                              className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50 shadow-sm group"
-                            >
-                              <img
-                                src={preview}
-                                alt={`รูปรีวิว ${index + 1}`}
-                                className="w-full h-48 object-cover"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveExistingPhoto(index)}
-                                className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
-                                aria-label="ลบรูปรีวิว"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                              <div className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-xs px-3 py-2 flex items-center justify-between gap-2">
-                                <span>รูปที่ {index + 1}</span>
-                                {photo.filename && (
-                                  <span className="truncate max-w-[60%] opacity-90">
-                                    {photo.filename}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                <div className="mt-6">
-                  <label className="block text-sm font-medium text-gray-700">
-                    อัปโหลดรูปภาพรีวิว (ไม่บังคับ)
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1">
-                    อัปโหลดได้สูงสุด {MAX_REVIEW_PHOTOS} รูป (เหลือ {remainingPhotoSlots} รูป)
-                  </p>
-                  <div className="mt-3">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleReviewPhotoChange}
-                      disabled={remainingPhotoSlots <= 0}
-                      className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-60"
-                    />
-                  </div>
-                  {remainingPhotoSlots <= 0 && (
-                    <p className="text-xs text-orange-500 mt-2">
-                      คุณอัปโหลดรูปครบจำนวนสูงสุดแล้ว หากต้องการเพิ่มกรุณาลบรูปเดิมก่อน
-                    </p>
-                  )}
-                  {reviewPhotoUploads.length > 0 && (
-                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {reviewPhotoUploads.map((item, index) => (
-                        <div
-                          key={`new-review-photo-${index}`}
-                          className="relative rounded-lg overflow-hidden border border-dashed border-blue-200 bg-blue-50/60"
-                        >
-                          <img
-                            src={item.previewUrl}
-                            alt={`รูปใหม่ ${index + 1}`}
-                            className="w-full h-48 object-cover"
+                      <div className="mt-6">
+                        <label className="block text-sm font-medium text-gray-700">
+                          อัปโหลดรูปภาพรีวิว (ไม่บังคับ)
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1">
+                          อัปโหลดได้สูงสุด {MAX_REVIEW_PHOTOS} รูป (เหลือ {remainingPhotoSlots} รูป)
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
+                          <input
+                            id="review-photo-upload"
+                            ref={reviewPhotoInputRef}
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleReviewPhotoChange}
+                            disabled={remainingPhotoSlots <= 0}
+                            className="sr-only"
                           />
                           <button
                             type="button"
-                            onClick={() => handleRemoveNewPhoto(index)}
-                            className="absolute top-2 right-2 bg-blue-600 text-white rounded-full p-1 hover:bg-blue-700"
-                            aria-label="ลบรูปใหม่"
+                            onClick={() => reviewPhotoInputRef.current?.click()}
+                            disabled={remainingPhotoSlots <= 0}
+                            className="px-4 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium hover:bg-blue-100 disabled:opacity-60 disabled:cursor-not-allowed"
                           >
-                            <X className="w-4 h-4" />
+                            เลือกรูปจากเครื่อง
                           </button>
-                          <div className="absolute bottom-0 inset-x-0 bg-blue-600/80 text-white text-xs px-3 py-2">
-                            รูปใหม่ {index + 1}
-                          </div>
+                          <span className="text-xs text-gray-500">
+                            รองรับไฟล์ .jpg, .png, .heic
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                        {remainingPhotoSlots <= 0 && (
+                          <p className="text-xs text-orange-500 mt-2">
+                            คุณอัปโหลดรูปครบจำนวนสูงสุดแล้ว หากต้องการเพิ่มกรุณาลบรูปเดิมก่อน
+                          </p>
+                        )}
+                        {reviewPhotoUploads.length > 0 && (
+                          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {reviewPhotoUploads.map((item, index) => (
+                              <div
+                                key={`new-review-photo-${index}`}
+                                className="relative rounded-lg overflow-hidden border border-dashed border-blue-200 bg-blue-50/60"
+                              >
+                                <img
+                                  src={item.previewUrl}
+                                  alt={`รูปใหม่ ${index + 1}`}
+                                  className="w-full h-48 object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveNewPhoto(index)}
+                                  className="absolute top-2 right-2 bg-blue-600 text-white rounded-full p-1 hover:bg-blue-700"
+                                  aria-label="ลบรูปใหม่"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                                <div className="absolute bottom-0 inset-x-0 bg-blue-600/80 text-white text-xs px-3 py-2">
+                                  รูปใหม่ {index + 1}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
 
-                {feedback && (
-                  <div
-                    className={`p-4 mb-4 rounded-lg border ${
-                      feedback.type === "success"
-                        ? "bg-green-50 text-green-600 border-green-200"
-                        : "bg-red-50 text-red-600 border-red-200"
-                    }`}
-                  >
-                    {feedback.message}
-                  </div>
-                )}
-
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ให้คะแนนบริการ
-                    </label>
-                    {renderInteractiveStars()}
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="comment"
-                      className="block text-sm font-medium text-gray-700 mb-2"
-                    >
-                      ความคิดเห็นเพิ่มเติม
-                    </label>
-                    <textarea
-                      id="comment"
-                      rows={4}
-                      value={comment}
-                      onChange={(event) => setComment(event.target.value)}
-                      className="w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 p-3 text-gray-700"
-                      placeholder="บอกเราหน่อยว่าประสบการณ์ของคุณเป็นอย่างไร"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-end gap-3">
-                    <button
-                      type="button"
-                      className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
-                      onClick={handleCancelReview}
-                    >
-                      ยกเลิก
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="px-5 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      {submitting && (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                      {feedback && (
+                        <div
+                          className={`p-4 mb-4 rounded-lg border ${
+                            feedback.type === "success"
+                              ? "bg-green-50 text-green-600 border-green-200"
+                              : "bg-red-50 text-red-600 border-red-200"
+                          }`}
+                        >
+                          {feedback.message}
+                        </div>
                       )}
-                      บันทึกรีวิว
-                    </button>
+
+                      <form onSubmit={handleSubmit} className="space-y-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            ให้คะแนนบริการ
+                          </label>
+                          {renderInteractiveStars()}
+                        </div>
+
+                        <div>
+                          <label
+                            htmlFor="comment"
+                            className="block text-sm font-medium text-gray-700 mb-2"
+                          >
+                            ความคิดเห็นเพิ่มเติม
+                          </label>
+                          <textarea
+                            id="comment"
+                            rows={4}
+                            value={comment}
+                            onChange={(event) => setComment(event.target.value)}
+                            className="w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 p-3 text-gray-700"
+                            placeholder="บอกเราหน่อยว่าประสบการณ์ของคุณเป็นอย่างไร"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            type="button"
+                            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                            onClick={handleCancelReview}
+                          >
+                            ยกเลิก
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={submitting}
+                            className="px-5 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+                          >
+                            {submitting && (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            )}
+                            บันทึกรีวิว
+                          </button>
+                        </div>
+                      </form>
+                    </div>
                   </div>
-                </form>
-              </div>
-            )}
+                </div>,
+                document.body
+              )}
+
           </div>
         </div>
       </div>
