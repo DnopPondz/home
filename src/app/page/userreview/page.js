@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import axios from "axios";
 import {
@@ -11,6 +18,7 @@ import {
   MessageSquareText,
   Star,
   CheckCircle2,
+  X,
 } from "lucide-react";
 import { AuthContext } from "@/app/context/AuthContext.js";
 
@@ -23,6 +31,8 @@ const normalizeId = (value) => {
   }
   return `${value}`;
 };
+
+const MAX_REVIEW_PHOTOS = 5;
 
 const normalizeCompletionPhoto = (photo) => {
   if (!photo || typeof photo !== "object") return null;
@@ -99,6 +109,32 @@ const UserReviewPage = () => {
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [existingReviewPhotos, setExistingReviewPhotos] = useState([]);
+  const [reviewPhotoUploads, setReviewPhotoUploads] = useState([]);
+
+  const reviewPhotoUploadsRef = useRef([]);
+  reviewPhotoUploadsRef.current = reviewPhotoUploads;
+
+  const resetReviewPhotoUploads = useCallback(() => {
+    setReviewPhotoUploads((prev) => {
+      prev.forEach((item) => {
+        if (item?.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl);
+        }
+      });
+      return [];
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      reviewPhotoUploadsRef.current.forEach((item) => {
+        if (item?.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl);
+        }
+      });
+    };
+  }, []);
 
   const completedCount = useMemo(
     () => bookings.filter((booking) => Boolean(booking.rating)).length,
@@ -135,26 +171,34 @@ const UserReviewPage = () => {
 
           const serviceId = normalizeId(item.serviceId);
           const userId = normalizeId(item.userId);
-          const reviewText = item.review ?? item.reviewDetail?.comment ?? "";
-          const ratingValue = item.rating ?? item.reviewDetail?.rating ?? 0;
-          const completionPhotos = Array.isArray(item.completionPhotos)
-            ? item.completionPhotos.map(normalizeCompletionPhoto).filter(Boolean)
-            : [];
+        const reviewText = item.review ?? item.reviewDetail?.comment ?? "";
+        const ratingValue = item.rating ?? item.reviewDetail?.rating ?? 0;
+        const completionPhotos = Array.isArray(item.completionPhotos)
+          ? item.completionPhotos.map(normalizeCompletionPhoto).filter(Boolean)
+          : [];
+        const reviewPhotos = Array.isArray(item.reviewDetail?.photos)
+          ? item.reviewDetail.photos
+              .map(normalizeCompletionPhoto)
+              .filter(Boolean)
+          : Array.isArray(item.reviewPhotos)
+          ? item.reviewPhotos.map(normalizeCompletionPhoto).filter(Boolean)
+          : [];
 
-          return {
-            ...item,
-            _idHex: idHex, // <- เก็บไว้ชัดเจน
-            bookingId: idHex, // <- ให้ bookingId เท่ากับ _idHex ไปเลย
-            serviceId,
-            userId,
-            rating: ratingValue,
-            review: reviewText,
-            reviewedAt: item.reviewedAt ?? item.reviewDetail?.updatedAt ?? null,
-            serviceDetails: item.serviceDetails ?? {},
-            completionPhotos,
-            completedAt: item.completedAt ?? item.completedDate ?? null,
-          };
-        });
+        return {
+          ...item,
+          _idHex: idHex, // <- เก็บไว้ชัดเจน
+          bookingId: idHex, // <- ให้ bookingId เท่ากับ _idHex ไปเลย
+          serviceId,
+          userId,
+          rating: ratingValue,
+          review: reviewText,
+          reviewedAt: item.reviewedAt ?? item.reviewDetail?.updatedAt ?? null,
+          serviceDetails: item.serviceDetails ?? {},
+          completionPhotos,
+          reviewPhotos,
+          completedAt: item.completedAt ?? item.completedDate ?? null,
+        };
+      });
 
         setBookings(normalized);
       } catch (err) {
@@ -171,6 +215,8 @@ const UserReviewPage = () => {
   }, [user]);
 
   const handleSelectBooking = (booking) => {
+    if (!booking) return;
+    resetReviewPhotoUploads();
     setSelectedBookingId(booking.bookingId);
     setRating(booking.rating || 0);
     setHoverRating(0);
@@ -184,6 +230,146 @@ const UserReviewPage = () => {
       null,
     [bookings, selectedBookingId]
   );
+
+  useEffect(() => {
+    if (selectedBooking) {
+      setExistingReviewPhotos(
+        Array.isArray(selectedBooking.reviewPhotos)
+          ? selectedBooking.reviewPhotos
+          : []
+      );
+    } else {
+      setExistingReviewPhotos([]);
+    }
+  }, [selectedBooking]);
+
+  const handleRemoveExistingPhoto = (index) => {
+    setExistingReviewPhotos((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleRemoveNewPhoto = (index) => {
+    setReviewPhotoUploads((prev) => {
+      const next = [...prev];
+      const [removed] = next.splice(index, 1);
+      if (removed?.previewUrl) {
+        URL.revokeObjectURL(removed.previewUrl);
+      }
+      return next;
+    });
+  };
+
+  const handleReviewPhotoChange = (event) => {
+    const files = Array.from(event.target?.files || []);
+    if (files.length === 0) return;
+
+    setReviewPhotoUploads((prev) => {
+      const totalExisting = existingReviewPhotos.length + prev.length;
+      const remainingSlots = Math.max(0, MAX_REVIEW_PHOTOS - totalExisting);
+      if (remainingSlots <= 0) {
+        return prev;
+      }
+
+      const selectedFiles = files.slice(0, remainingSlots);
+      const mapped = selectedFiles.map((file) => ({
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }));
+      return [...prev, ...mapped];
+    });
+
+    if (event.target) {
+      event.target.value = "";
+    }
+  };
+
+  const fileToBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          const [, base64] = reader.result.split(",");
+          if (!base64) {
+            reject(new Error("ไม่สามารถอ่านไฟล์ได้"));
+            return;
+          }
+          resolve(base64);
+        } else {
+          reject(new Error("ไม่สามารถอ่านไฟล์ได้"));
+        }
+      };
+      reader.onerror = () => {
+        reject(reader.error || new Error("ไม่สามารถอ่านไฟล์ได้"));
+      };
+      reader.readAsDataURL(file);
+    });
+
+  const prepareExistingPhotosForSubmit = () => {
+    return existingReviewPhotos
+      .map((photo) => {
+        if (!photo) return null;
+
+        let base64Data = "";
+        if (typeof photo.data === "string" && photo.data.trim()) {
+          base64Data = photo.data.trim();
+        } else if (typeof photo.base64 === "string" && photo.base64.trim()) {
+          base64Data = photo.base64.trim();
+        } else if (typeof photo.dataUrl === "string" && photo.dataUrl.trim()) {
+          const [, base64] = photo.dataUrl.split(",", 2);
+          base64Data = base64 || "";
+        }
+
+        if (!base64Data) return null;
+
+        let contentType = "image/jpeg";
+        if (typeof photo.contentType === "string" && photo.contentType.trim()) {
+          contentType = photo.contentType;
+        } else if (typeof photo.type === "string" && photo.type.trim()) {
+          contentType = photo.type;
+        }
+
+        return {
+          data: base64Data,
+          contentType,
+          filename:
+            typeof photo.filename === "string" && photo.filename.trim()
+              ? photo.filename
+              : typeof photo.name === "string" && photo.name.trim()
+              ? photo.name
+              : null,
+          uploadedAt: photo.uploadedAt || photo.createdAt || new Date().toISOString(),
+        };
+      })
+      .filter(Boolean);
+  };
+
+  const prepareReviewPhotosForSubmit = async () => {
+    const existing = prepareExistingPhotosForSubmit();
+    if (reviewPhotoUploads.length === 0) {
+      return existing;
+    }
+
+    const preparedNew = await Promise.all(
+      reviewPhotoUploads.map(async (item) => ({
+        data: await fileToBase64(item.file),
+        contentType: item.file.type || "image/jpeg",
+        filename: item.file.name || null,
+        size: item.file.size || null,
+        uploadedAt: new Date().toISOString(),
+      }))
+    );
+
+    return [...existing, ...preparedNew];
+  };
+
+  const handleCancelReview = () => {
+    setSelectedBookingId(null);
+    setRating(0);
+    setHoverRating(0);
+    setComment("");
+    setFeedback(null);
+    setExistingReviewPhotos([]);
+    resetReviewPhotoUploads();
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -201,30 +387,71 @@ const UserReviewPage = () => {
     setFeedback(null);
 
     try {
+      const photos = await prepareReviewPhotosForSubmit();
+      if (photos.length > MAX_REVIEW_PHOTOS) {
+        setFeedback({
+          type: "error",
+          message: `สามารถอัปโหลดรูปภาพได้สูงสุด ${MAX_REVIEW_PHOTOS} รูป`,
+        });
+        setSubmitting(false);
+        return;
+      }
+
       const payload = {
         bookingId: selectedBooking._idHex || selectedBooking.bookingId, // ใช้ _idHex ก่อน
         userId: user.userId,
         rating,
         comment,
+        photos,
       };
 
       const response = await axios.post("/api/reviews", payload);
+
+      const reviewDetailResponse = response.data?.review;
+      const updatedReviewDetail = reviewDetailResponse
+        ? {
+            ...reviewDetailResponse,
+            photos: Array.isArray(reviewDetailResponse.photos)
+              ? reviewDetailResponse.photos
+              : photos,
+          }
+        : {
+            ...(selectedBooking.reviewDetail || {}),
+            rating,
+            comment,
+            updatedAt: new Date().toISOString(),
+            photos,
+          };
 
       const updatedBooking = {
         ...selectedBooking,
         rating,
         review: comment,
         reviewedAt: new Date().toISOString(),
-        reviewDetail: response.data?.review ?? selectedBooking.reviewDetail,
+        reviewDetail: updatedReviewDetail,
+        reviewPhotos: Array.isArray(response.data?.review?.photos)
+          ? response.data.review.photos
+              .map(normalizeCompletionPhoto)
+              .filter(Boolean)
+          : photos.map((photo) =>
+              normalizeCompletionPhoto({ ...photo })
+            ),
       };
+
+      const normalizedReviewPhotos = Array.isArray(updatedBooking.reviewPhotos)
+        ? updatedBooking.reviewPhotos
+        : [];
 
       setBookings((prev) =>
         prev.map((booking) =>
           booking.bookingId === selectedBooking.bookingId
             ? updatedBooking
-            : booking
+          : booking
         )
       );
+
+      setExistingReviewPhotos(normalizedReviewPhotos);
+      resetReviewPhotoUploads();
 
       setFeedback({
         type: "success",
@@ -315,6 +542,11 @@ const UserReviewPage = () => {
     const contentType = photo.contentType || photo.type || "image/jpeg";
     return `data:${contentType};base64,${rawData}`;
   };
+
+  const remainingPhotoSlots = Math.max(
+    0,
+    MAX_REVIEW_PHOTOS - (existingReviewPhotos.length + reviewPhotoUploads.length)
+  );
 
   if (!user) {
     return (
@@ -566,6 +798,33 @@ const UserReviewPage = () => {
                                 </div>
                               </div>
                             )}
+                          {Array.isArray(booking.reviewPhotos) &&
+                            booking.reviewPhotos.length > 0 && (
+                              <div className="mt-4">
+                                <p className="text-xs font-medium text-gray-600 mb-2">
+                                  รูปจากรีวิวของคุณ
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  {booking.reviewPhotos.slice(0, 3).map((photo, index) => {
+                                    const preview = getCompletionPhotoUrl(photo);
+                                    if (!preview) return null;
+                                    return (
+                                      <img
+                                        key={`${booking.bookingId}-review-thumb-${index}`}
+                                        src={preview}
+                                        alt={`รูปรีวิว ${index + 1}`}
+                                        className="w-12 h-12 rounded-lg object-cover border border-gray-200 shadow-sm"
+                                      />
+                                    );
+                                  })}
+                                  {booking.reviewPhotos.length > 3 && (
+                                    <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
+                                      +{booking.reviewPhotos.length - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                         </div>
                         <div className="text-right space-y-3">
                           {booking.rating ? (
@@ -660,6 +919,103 @@ const UserReviewPage = () => {
                   </div>
                 )}
 
+                {Array.isArray(existingReviewPhotos) &&
+                  existingReviewPhotos.length > 0 && (
+                    <div className="mt-6">
+                      <h4 className="text-sm font-semibold text-gray-700">
+                        รูปจากรีวิวของคุณ
+                      </h4>
+                      <p className="text-xs text-gray-500 mt-1">
+                        คุณสามารถลบรูปที่ไม่ต้องการได้ก่อนบันทึก
+                      </p>
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {existingReviewPhotos.map((photo, index) => {
+                          const preview = getCompletionPhotoUrl(photo);
+                          if (!preview) return null;
+                          return (
+                            <div
+                              key={`existing-review-photo-${index}`}
+                              className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50 shadow-sm group"
+                            >
+                              <img
+                                src={preview}
+                                alt={`รูปรีวิว ${index + 1}`}
+                                className="w-full h-48 object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveExistingPhoto(index)}
+                                className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                                aria-label="ลบรูปรีวิว"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                              <div className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-xs px-3 py-2 flex items-center justify-between gap-2">
+                                <span>รูปที่ {index + 1}</span>
+                                {photo.filename && (
+                                  <span className="truncate max-w-[60%] opacity-90">
+                                    {photo.filename}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                <div className="mt-6">
+                  <label className="block text-sm font-medium text-gray-700">
+                    อัปโหลดรูปภาพรีวิว (ไม่บังคับ)
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    อัปโหลดได้สูงสุด {MAX_REVIEW_PHOTOS} รูป (เหลือ {remainingPhotoSlots} รูป)
+                  </p>
+                  <div className="mt-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleReviewPhotoChange}
+                      disabled={remainingPhotoSlots <= 0}
+                      className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-60"
+                    />
+                  </div>
+                  {remainingPhotoSlots <= 0 && (
+                    <p className="text-xs text-orange-500 mt-2">
+                      คุณอัปโหลดรูปครบจำนวนสูงสุดแล้ว หากต้องการเพิ่มกรุณาลบรูปเดิมก่อน
+                    </p>
+                  )}
+                  {reviewPhotoUploads.length > 0 && (
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {reviewPhotoUploads.map((item, index) => (
+                        <div
+                          key={`new-review-photo-${index}`}
+                          className="relative rounded-lg overflow-hidden border border-dashed border-blue-200 bg-blue-50/60"
+                        >
+                          <img
+                            src={item.previewUrl}
+                            alt={`รูปใหม่ ${index + 1}`}
+                            className="w-full h-48 object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveNewPhoto(index)}
+                            className="absolute top-2 right-2 bg-blue-600 text-white rounded-full p-1 hover:bg-blue-700"
+                            aria-label="ลบรูปใหม่"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                          <div className="absolute bottom-0 inset-x-0 bg-blue-600/80 text-white text-xs px-3 py-2">
+                            รูปใหม่ {index + 1}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {feedback && (
                   <div
                     className={`p-4 mb-4 rounded-lg border ${
@@ -701,12 +1057,7 @@ const UserReviewPage = () => {
                     <button
                       type="button"
                       className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
-                      onClick={() => {
-                        setSelectedBookingId(null);
-                        setRating(0);
-                        setComment("");
-                        setFeedback(null);
-                      }}
+                      onClick={handleCancelReview}
                     >
                       ยกเลิก
                     </button>
