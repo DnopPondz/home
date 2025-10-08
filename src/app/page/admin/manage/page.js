@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 
 // Notification Component
@@ -564,12 +564,6 @@ const MobileUserCard = ({ user, primaryRole, onRoleChange, onDeleteUser }) => {
 
 export default function ManageUsers() {
   const [users, setUsers] = useState([]);
-  const [workerOverview, setWorkerOverview] = useState({
-    workers: [],
-    reviewCount: 0,
-    loading: true,
-    error: null,
-  });
   const [notification, setNotification] = useState({
     message: "",
     type: "success",
@@ -584,44 +578,6 @@ export default function ManageUsers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const normalizeId = (value) => {
-    if (!value) return null;
-    if (typeof value === "string") return value;
-    if (typeof value === "object") {
-      if (value.$oid) return value.$oid;
-      if (typeof value.toString === "function") {
-        const stringified = value.toString();
-        if (stringified && stringified !== "[object Object]") {
-          return stringified;
-        }
-      }
-    }
-    return String(value);
-  };
-
-  const normalizeStatus = (value) => {
-    const status = String(value || "").toLowerCase();
-    if (!status) return "other";
-    if (["pending", "รอดำเนินการ"].includes(status)) return "pending";
-    if (["accepted", "กำลังดำเนินการ", "กำลังทำ", "in progress"].includes(status))
-      return "accepted";
-    if (["completed", "เสร็จสิ้น", "จบงาน", "สำเร็จ"].includes(status))
-      return "completed";
-    if (["rejected", "ยกเลิก", "ถูกยกเลิก", "cancelled", "canceled"].includes(status))
-      return "rejected";
-    return "other";
-  };
-
-  const toArray = (data) => {
-    if (Array.isArray(data)) return data;
-    if (data && typeof data === "object") {
-      if (Array.isArray(data.data)) return data.data;
-      if (Array.isArray(data.results)) return data.results;
-      if (Array.isArray(data.items)) return data.items;
-    }
-    return [];
-  };
-
   const resolvePrimaryRole = (role) => {
     if (Array.isArray(role)) {
       if (role.includes("admin")) return "admin";
@@ -634,136 +590,42 @@ export default function ManageUsers() {
   const hasRole = (role, value) =>
     Array.isArray(role) ? role.includes(value) : role === value;
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const showNotification = (message, type = "success") => {
+    setNotification({
+      message,
+      type,
+      isVisible: true,
+    });
+  };
+
+  const hideNotification = () => {
+    setNotification((prev) => ({ ...prev, isVisible: false }));
+  };
+
+  const toArray = (data) => {
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === "object") {
+      if (Array.isArray(data.data)) return data.data;
+      if (Array.isArray(data.results)) return data.results;
+      if (Array.isArray(data.items)) return data.items;
+    }
+    return [];
+  };
 
   const fetchUsers = async () => {
     try {
-      setWorkerOverview((prev) => ({ ...prev, loading: true, error: null }));
-
-      const [usersRes, bookingsRes] = await Promise.all([
-        axios.get("/api/users"),
-        axios.get("/api/bookings"),
-      ]);
-
-      const usersData = toArray(usersRes.data);
-      const bookingsData = toArray(bookingsRes.data);
-
+      const response = await axios.get("/api/users");
+      const usersData = toArray(response.data);
       setUsers(usersData);
-
-      const workerUsers = usersData.filter((user) =>
-        Array.isArray(user.role)
-          ? user.role.includes("worker")
-          : user.role === "worker"
-      );
-
-      const workerBaseEntries = workerUsers
-        .map((worker) => {
-          const workerId = normalizeId(worker._id);
-          if (!workerId) return null;
-          const nameParts = [worker.firstName, worker.lastName]
-            .filter(Boolean)
-            .join(" ");
-          return [
-            workerId,
-            {
-              workerId,
-              name: nameParts || worker.email || "ไม่ทราบชื่อ",
-              phone: worker.phone || "",
-              total: 0,
-              pending: 0,
-              accepted: 0,
-              completed: 0,
-              rejected: 0,
-              ratingTotal: 0,
-              ratingCount: 0,
-            },
-          ];
-        })
-        .filter(Boolean);
-
-      const workerStatsMap = new Map(workerBaseEntries);
-      const collator = new Intl.Collator("th-TH");
-
-      let totalRatingCount = 0;
-
-      bookingsData.forEach((booking) => {
-        const normalizedStatus = normalizeStatus(booking.status);
-        const workerId = normalizeId(booking.assignedTo);
-
-        if (workerId) {
-          if (!workerStatsMap.has(workerId)) {
-            workerStatsMap.set(workerId, {
-              workerId,
-              name:
-                booking.assignedToName ||
-                booking.workerName ||
-                "ไม่พบข้อมูลพนักงาน",
-              phone: booking.workerPhone || "",
-              total: 0,
-              pending: 0,
-              accepted: 0,
-              completed: 0,
-              rejected: 0,
-              ratingTotal: 0,
-              ratingCount: 0,
-            });
-          }
-
-          const stats = workerStatsMap.get(workerId);
-          stats.total += 1;
-          if (normalizedStatus === "pending") stats.pending += 1;
-          if (normalizedStatus === "accepted") stats.accepted += 1;
-          if (normalizedStatus === "completed") stats.completed += 1;
-          if (normalizedStatus === "rejected") stats.rejected += 1;
-
-          const ratingSource =
-            booking.rating ?? booking.reviewDetail?.rating ?? booking.review?.rating;
-          const ratingValue = Number(ratingSource);
-          if (Number.isFinite(ratingValue) && ratingValue > 0) {
-            stats.ratingTotal += ratingValue;
-            stats.ratingCount += 1;
-            totalRatingCount += 1;
-          }
-        }
-      });
-
-      const workers = Array.from(workerStatsMap.values())
-        .map((stats) => ({
-          workerId: stats.workerId,
-          name: stats.name,
-          phone: stats.phone,
-          total: stats.total,
-          pending: stats.pending,
-          accepted: stats.accepted,
-          completed: stats.completed,
-          rejected: stats.rejected,
-          ratingCount: stats.ratingCount,
-          averageRating:
-            stats.ratingCount > 0 ? stats.ratingTotal / stats.ratingCount : 0,
-        }))
-        .sort((a, b) => {
-          if (b.total !== a.total) return b.total - a.total;
-          return collator.compare(a.name || "", b.name || "");
-        });
-
-      setWorkerOverview({
-        workers,
-        reviewCount: totalRatingCount,
-        loading: false,
-        error: null,
-      });
     } catch (error) {
-      console.error("Error loading user or booking data:", error);
+      console.error("Error loading user data:", error);
       showNotification("ไม่สามารถโหลดข้อมูลผู้ใช้ได้", "error");
-      setWorkerOverview((prev) => ({
-        ...prev,
-        loading: false,
-        error: "ไม่สามารถโหลดข้อมูลพนักงานได้",
-      }));
     }
   };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const filteredUsers = users.filter((user) => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -782,31 +644,6 @@ export default function ManageUsers() {
     );
   });
 
-  const workerSummary = useMemo(() => {
-    return workerOverview.workers.reduce(
-      (acc, worker) => {
-        acc.total += worker.total || 0;
-        acc.pending += worker.pending || 0;
-        acc.accepted += worker.accepted || 0;
-        acc.completed += worker.completed || 0;
-        acc.rejected += worker.rejected || 0;
-        return acc;
-      },
-      { total: 0, pending: 0, accepted: 0, completed: 0, rejected: 0 }
-    );
-  }, [workerOverview.workers]);
-
-  const showNotification = (message, type = "success") => {
-    setNotification({
-      message,
-      type,
-      isVisible: true,
-    });
-  };
-
-  const hideNotification = () => {
-    setNotification((prev) => ({ ...prev, isVisible: false }));
-  };
 
   const handleRoleChange = async (userId, newRole) => {
     try {
@@ -923,162 +760,6 @@ export default function ManageUsers() {
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6">
-          <section className="rounded-3xl border border-slate-100 bg-white/80 p-6 shadow-lg shadow-slate-200/70">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-slate-900">
-                  ภาพรวมงานของพนักงานภาคสนาม
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  ตรวจสอบสถานะงานของพนักงาน พร้อมจำนวนรีวิวจากลูกค้าแบบเรียลไทม์
-                </p>
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-600">
-                <svg className="h-4 w-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M11.48 3.499a.562.562 0 011.04 0l1.18 3.63a.563.563 0 00.532.39h3.813a.563.563 0 01.332 1.017l-3.08 2.24a.563.563 0 00-.204.631l1.18 3.63a.563.563 0 01-.865.631l-3.08-2.24a.563.563 0 00-.66 0l-3.08 2.24a.563.563 0 01-.865-.631l1.18-3.63a.563.563 0 00-.204-.631l-3.08-2.24a.563.563 0 01.332-1.017h3.813a.563.563 0 00.532-.39l1.18-3.63z"
-                  />
-                </svg>
-                <span>
-                  รีวิวทั้งหมด {" "}
-                  {workerOverview.loading
-                    ? "…"
-                    : `${workerOverview.reviewCount.toLocaleString("th-TH")} รายการ`}
-                </span>
-              </div>
-            </div>
-
-            {workerOverview.loading ? (
-              <div className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-10 text-center text-sm text-slate-500">
-                กำลังโหลดข้อมูลพนักงาน...
-              </div>
-            ) : workerOverview.error ? (
-              <div className="mt-6 rounded-2xl border border-dashed border-rose-200 bg-rose-50/80 px-6 py-10 text-center text-sm text-rose-600">
-                {workerOverview.error}
-              </div>
-            ) : workerOverview.workers.length === 0 ? (
-              <div className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-10 text-center text-sm text-slate-500">
-                ยังไม่มีการมอบหมายงานให้พนักงาน
-              </div>
-            ) : (
-              <>
-                <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                  <div className="rounded-2xl bg-slate-900/90 px-4 py-4 text-white shadow-lg">
-                    <span className="text-xs uppercase tracking-wide text-slate-200">งานทั้งหมด</span>
-                    <div className="mt-2 text-2xl font-semibold">
-                      {workerSummary.total.toLocaleString("th-TH")}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-amber-100 px-4 py-4 text-amber-800">
-                    <span className="text-xs uppercase tracking-wide text-amber-700">รอดำเนินการ</span>
-                    <div className="mt-2 text-2xl font-semibold">
-                      {workerSummary.pending.toLocaleString("th-TH")}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-sky-100 px-4 py-4 text-sky-800">
-                    <span className="text-xs uppercase tracking-wide text-sky-700">กำลังทำ</span>
-                    <div className="mt-2 text-2xl font-semibold">
-                      {workerSummary.accepted.toLocaleString("th-TH")}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-emerald-100 px-4 py-4 text-emerald-800">
-                    <span className="text-xs uppercase tracking-wide text-emerald-700">จบงาน</span>
-                    <div className="mt-2 text-2xl font-semibold">
-                      {workerSummary.completed.toLocaleString("th-TH")}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-rose-100 px-4 py-4 text-rose-800">
-                    <span className="text-xs uppercase tracking-wide text-rose-700">ยกเลิก</span>
-                    <div className="mt-2 text-2xl font-semibold">
-                      {workerSummary.rejected.toLocaleString("th-TH")}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 overflow-x-auto">
-                  <table className="min-w-full divide-y divide-slate-200 text-sm">
-                    <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      <tr>
-                        <th className="px-4 py-3">พนักงาน</th>
-                        <th className="px-4 py-3 text-center">งานทั้งหมด</th>
-                        <th className="px-4 py-3 text-center">รอดำเนินการ</th>
-                        <th className="px-4 py-3 text-center">กำลังทำ</th>
-                        <th className="px-4 py-3 text-center">จบงาน</th>
-                        <th className="px-4 py-3 text-center">ยกเลิก</th>
-                        <th className="px-4 py-3 text-center">คะแนนรีวิว</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {workerOverview.workers.map((worker) => (
-                        <tr
-                          key={worker.workerId || worker.name}
-                          className="bg-white transition-colors even:bg-slate-50/60 hover:bg-slate-100/60"
-                        >
-                          <td className="whitespace-nowrap px-4 py-3">
-                            <div className="font-semibold text-slate-900">{worker.name}</div>
-                            {worker.phone && (
-                              <div className="text-xs text-slate-500">{worker.phone}</div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="inline-flex min-w-[3rem] justify-center rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
-                              {Number(worker.total || 0).toLocaleString("th-TH")}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="inline-flex min-w-[3rem] justify-center rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-700">
-                              {Number(worker.pending || 0).toLocaleString("th-TH")}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="inline-flex min-w-[3rem] justify-center rounded-full bg-sky-100 px-3 py-1 text-sm font-semibold text-sky-700">
-                              {Number(worker.accepted || 0).toLocaleString("th-TH")}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="inline-flex min-w-[3rem] justify-center rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
-                              {Number(worker.completed || 0).toLocaleString("th-TH")}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="inline-flex min-w-[3rem] justify-center rounded-full bg-rose-100 px-3 py-1 text-sm font-semibold text-rose-700">
-                              {Number(worker.rejected || 0).toLocaleString("th-TH")}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {worker.ratingCount > 0 ? (
-                              <div className="inline-flex flex-col items-center gap-1">
-                                <span className="flex items-center gap-1 text-sm font-semibold text-amber-600">
-                                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={1.5}
-                                      d="M11.48 3.499a.562.562 0 011.04 0l1.18 3.63a.563.563 0 00.532.39h3.813a.563.563 0 01.332 1.017l-3.08 2.24a.563.563 0 00-.204.631l1.18 3.63a.563.563 0 01-.865.631l-3.08-2.24a.563.563 0 00-.66 0l-3.08 2.24a.563.563 0 01-.865-.631l1.18-3.63a.563.563 0 00-.204-.631l-3.08-2.24a.563.563 0 01.332-1.017h3.813a.563.563 0 00.532-.39l1.18-3.63z"
-                                    />
-                                  </svg>
-                                  {Number(worker.averageRating || 0).toFixed(1)}
-                                </span>
-                                <span className="text-xs text-slate-400">
-                                  {Number(worker.ratingCount || 0).toLocaleString("th-TH")} รีวิว
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-slate-400">ยังไม่มีรีวิว</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </section>
-
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
             {/* Search Bar */}
             <div className="p-4 sm:p-6 border-b border-gray-200">
