@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Search, Eye, X, Star } from 'lucide-react';
+import { Search, Eye, X, Star, Image as ImageIcon } from 'lucide-react';
 
 const normalizeId = (value) => {
     if (!value) return '';
@@ -11,6 +11,77 @@ const normalizeId = (value) => {
         if (typeof value.toString === 'function') return value.toString();
     }
     return String(value);
+};
+
+const normalizePhoto = (photo) => {
+    if (!photo) return null;
+
+    if (typeof photo === 'string') {
+        const trimmed = photo.trim();
+        if (!trimmed) return null;
+        if (trimmed.startsWith('data:')) {
+            const [, base64] = trimmed.split(',', 2);
+            const match = trimmed.match(/data:(.*?);base64/);
+            return {
+                data: base64 || '',
+                dataUrl: trimmed,
+                contentType: match?.[1] || 'image/jpeg',
+                filename: null,
+                uploadedAt: null,
+            };
+        }
+        return {
+            data: trimmed,
+            dataUrl: `data:image/jpeg;base64,${trimmed}`,
+            contentType: 'image/jpeg',
+            filename: null,
+            uploadedAt: null,
+        };
+    }
+
+    if (typeof photo !== 'object') return null;
+
+    let base64Data = '';
+    if (typeof photo.data === 'string' && photo.data.trim()) {
+        base64Data = photo.data.trim();
+    } else if (typeof photo.base64 === 'string' && photo.base64.trim()) {
+        base64Data = photo.base64.trim();
+    }
+
+    let dataUrl = '';
+    if (typeof photo.dataUrl === 'string' && photo.dataUrl.trim()) {
+        dataUrl = photo.dataUrl.trim();
+        if (!base64Data && dataUrl.startsWith('data:')) {
+            const [, base64] = dataUrl.split(',', 2);
+            base64Data = base64 || '';
+        }
+    }
+
+    if (!base64Data) return null;
+
+    if (!dataUrl) {
+        const contentType = photo.contentType || photo.type || 'image/jpeg';
+        dataUrl = `data:${contentType};base64,${base64Data}`;
+    }
+
+    return {
+        data: base64Data,
+        dataUrl,
+        contentType: photo.contentType || photo.type || 'image/jpeg',
+        filename: photo.filename || photo.name || null,
+        uploadedAt: photo.uploadedAt || photo.createdAt || null,
+    };
+};
+
+const getPhotoPreview = (photo) => {
+    if (!photo) return '';
+    if (typeof photo === 'string') return photo;
+    if (typeof photo.dataUrl === 'string') return photo.dataUrl;
+    if (typeof photo.data === 'string' && photo.data) {
+        const contentType = photo.contentType || photo.type || 'image/jpeg';
+        return `data:${contentType};base64,${photo.data}`;
+    }
+    return '';
 };
 
 const buildCustomerName = (userDetails = {}) => {
@@ -25,6 +96,11 @@ const mapBookingToHistoryJob = (booking) => {
     const reviewComment = booking?.review ?? booking?.reviewDetail?.comment ?? '';
     const priceValue = booking?.estimatedPrice ?? booking?.serviceDetails?.price ?? booking?.price ?? null;
     const parsedPrice = typeof priceValue === 'number' ? priceValue : Number(priceValue) || 0;
+    const reviewPhotos = Array.isArray(booking?.reviewDetail?.photos)
+        ? booking.reviewDetail.photos.map(normalizePhoto).filter(Boolean)
+        : Array.isArray(booking?.reviewPhotos)
+        ? booking.reviewPhotos.map(normalizePhoto).filter(Boolean)
+        : [];
 
     return {
         _id: normalizeId(booking?._id),
@@ -40,6 +116,7 @@ const mapBookingToHistoryJob = (booking) => {
         rating: rating ? Number(rating) : 0,
         feedback: reviewComment,
         reviewedAt: booking?.reviewedAt || booking?.reviewDetail?.updatedAt || null,
+        reviewPhotos,
     };
 };
 
@@ -232,6 +309,12 @@ const History = () => {
                                                         {renderStars(Math.round(job.rating))}
                                                     </div>
                                                     <span className="text-xs text-gray-500">{job.rating.toFixed(1)}/5</span>
+                                                    {job.reviewPhotos?.length > 0 && (
+                                                        <div className="flex items-center space-x-1 text-xs text-gray-500">
+                                                            <ImageIcon className="w-3 h-3" />
+                                                            <span>{job.reviewPhotos.length} รูป</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <span className="text-gray-400">ยังไม่มีรีวิว</span>
@@ -363,6 +446,32 @@ const History = () => {
                                         <p className="text-sm text-gray-800 mt-1 bg-gray-50 p-2 rounded">
                                             {selectedJob.feedback}
                                         </p>
+                                    </div>
+                                )}
+                                {Array.isArray(selectedJob.reviewPhotos) && selectedJob.reviewPhotos.length > 0 && (
+                                    <div>
+                                        <span className="text-sm text-gray-600">รูปจากลูกค้า:</span>
+                                        <div className="mt-2 grid grid-cols-2 gap-3">
+                                            {selectedJob.reviewPhotos.map((photo, index) => {
+                                                const preview = getPhotoPreview(photo);
+                                                if (!preview) return null;
+                                                return (
+                                                    <div
+                                                        key={`selected-review-photo-${index}`}
+                                                        className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50"
+                                                    >
+                                                        <img
+                                                            src={preview}
+                                                            alt={`รูปรีวิว ${index + 1}`}
+                                                            className="w-full h-32 object-cover"
+                                                        />
+                                                        <div className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-xs px-2 py-1">
+                                                            รูปที่ {index + 1}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 )}
                                 {selectedJob.reviewedAt && (
