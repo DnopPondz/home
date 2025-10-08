@@ -679,13 +679,13 @@ const UserHistory = () => {
                             </p>
                           </div>
                         )}
-                        {selectedService.cancelReason && (
+                        {(selectedService.cancelReason || selectedService.rejectionReason) && (
                           <div>
                             <p className="text-sm text-gray-600 mb-1">
                               เหตุผลที่ยกเลิก:
                             </p>
                             <p className="text-red-600">
-                              {selectedService.cancelReason}
+                              {selectedService.cancelReason || selectedService.rejectionReason}
                             </p>
                           </div>
                         )}
