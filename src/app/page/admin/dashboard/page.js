@@ -267,6 +267,30 @@ export default function AdminDashboard() {
     return { axisMax, ticks };
   }, [salesData.services]);
 
+  const chartColumns = useMemo(() => {
+    return salesData.services.map((service, index) => {
+      const revenue = typeof service.totalRevenue === 'number' ? service.totalRevenue : 0;
+      const bookingsCount = Number(service.totalBookings || 0);
+      const key = service.serviceId || service.serviceName || index;
+      const barColor = chartPalette[index % chartPalette.length];
+      const heightPercent = chartMeta.axisMax > 0 ? (revenue / chartMeta.axisMax) * 100 : 0;
+      const boundedHeight = Math.min(Math.max(heightPercent, 0), 100);
+      const heightValue = Number.isFinite(boundedHeight) ? boundedHeight : 0;
+      const heightString = `${heightValue.toFixed(2)}%`;
+      const labelBottom = heightValue > 0 ? `calc(${heightValue.toFixed(2)}% + 16px)` : '16px';
+
+      return {
+        key,
+        serviceName: service.serviceName || 'ไม่ระบุบริการ',
+        bookingsCount,
+        revenue,
+        barColor,
+        heightString,
+        labelBottom
+      };
+    });
+  }, [salesData.services, chartMeta.axisMax, chartPalette]);
+
   const formatAxisTick = useCallback((value) => {
     if (typeof value !== 'number' || Number.isNaN(value)) {
       return '0';
@@ -583,47 +607,35 @@ export default function AdminDashboard() {
                             </div>
                             <div className="absolute inset-y-0 left-0 w-px bg-slate-400" />
                           </div>
-                          <div className="relative flex h-72 items-end justify-around px-6 pb-16">
-                            {salesData.services.map((service, index) => {
-                              const revenue = typeof service.totalRevenue === 'number' ? service.totalRevenue : 0;
-                              const bookingsCount = Number(service.totalBookings || 0);
-                              const key = service.serviceId || service.serviceName || index;
-                              const heightPercent = chartMeta.axisMax > 0 ? (revenue / chartMeta.axisMax) * 100 : 0;
-                              const boundedHeight = Math.min(Math.max(heightPercent, 0), 100);
-                              const heightValue = Number.isFinite(boundedHeight) ? boundedHeight : 0;
-                              const heightString = `${heightValue.toFixed(2)}%`;
-                              const labelBottom = heightValue > 0 ? `calc(${heightValue.toFixed(2)}% + 12px)` : '12px';
-                              const barColor = chartPalette[index % chartPalette.length];
-
-                              return (
-                                <div key={key} className="flex h-full w-28 flex-col items-center gap-3">
-                                  <div className="relative flex h-full w-full items-end justify-center overflow-visible">
-                                    <div
-                                      className="absolute left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow"
-                                      style={{ bottom: labelBottom }}
-                                    >
-                                      {formatCurrency(revenue).replace('฿', '')}
-                                    </div>
-                                    <div className="flex h-full w-14 items-end justify-center">
-                                      <div
-                                        className="w-full rounded-t-[28px] border border-slate-900/10 shadow-[0_12px_24px_-12px_rgba(15,23,42,0.45)] transition-[height] duration-500"
-                                        style={{
-                                          height: heightString,
-                                          backgroundColor: barColor,
-                                          backgroundImage: buildBarGradient(barColor)
-                                        }}
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="text-center">
-                                    <p className="break-words text-sm font-semibold leading-tight text-slate-700">
-                                      {service.serviceName || 'ไม่ระบุบริการ'}
-                                    </p>
-                                    <p className="text-xs text-slate-400">{bookingsCount.toLocaleString('th-TH')} งาน</p>
-                                  </div>
+                          <div className="relative flex h-72 items-end justify-around px-6">
+                            {chartColumns.map((column) => (
+                              <div key={column.key} className="relative flex h-full w-28 items-end justify-center overflow-visible">
+                                <div
+                                  className="absolute left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow"
+                                  style={{ bottom: column.labelBottom }}
+                                >
+                                  {formatCurrency(column.revenue).replace('฿', '')}
                                 </div>
-                              );
-                            })}
+                                <div className="flex h-full w-16 items-end justify-center">
+                                  <div
+                                    className="w-full rounded-t-[28px] border border-slate-900/10 shadow-[0_12px_24px_-12px_rgba(15,23,42,0.45)] transition-[height] duration-500"
+                                    style={{
+                                      height: column.heightString,
+                                      backgroundColor: column.barColor,
+                                      backgroundImage: buildBarGradient(column.barColor)
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-8 flex items-start justify-around px-6">
+                            {chartColumns.map((column) => (
+                              <div key={`${column.key}-label`} className="w-28 text-center">
+                                <p className="break-words text-sm font-semibold leading-tight text-slate-700">{column.serviceName}</p>
+                                <p className="text-xs text-slate-400">{column.bookingsCount.toLocaleString('th-TH')} งาน</p>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>
