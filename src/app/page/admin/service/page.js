@@ -34,6 +34,8 @@ const Service = () => {
   const [photoInputKey, setPhotoInputKey] = useState(0);
   const [popupSubmitting, setPopupSubmitting] = useState(false);
   const [photoViewer, setPhotoViewer] = useState({ open: false, src: "", title: "" });
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [rejectionError, setRejectionError] = useState("");
 
   const completionPhotosRef = useRef([]);
   completionPhotosRef.current = completionPhotos;
@@ -229,6 +231,11 @@ const Service = () => {
       resetCompletionPhotoState();
     }
 
+    if (type === "reject") {
+      setRejectionReason("");
+      setRejectionError("");
+    }
+
     const actions = {
       accept: {
         title: "ยืนยันการรับงาน?",
@@ -270,8 +277,6 @@ const Service = () => {
       return;
     }
 
-    setPopupSubmitting(true);
-
     try {
       let extraData = {};
 
@@ -289,10 +294,31 @@ const Service = () => {
         extraData = { completionPhotos: preparedPhotos };
       }
 
+      if (type === "reject") {
+        const trimmedReason = rejectionReason.trim();
+        if (!trimmedReason) {
+          setRejectionError("กรุณาระบุเหตุผลในการปฏิเสธงาน");
+          return;
+        }
+        setRejectionError("");
+        extraData = {
+          ...extraData,
+          cancelReason: trimmedReason,
+          rejectionReason: trimmedReason,
+        };
+      }
+
+      setPopupSubmitting(true);
+
       await updateBookingStatus(job, nextStatus, extraData);
 
       if (type === "complete") {
         resetCompletionPhotoState();
+      }
+
+      if (type === "reject") {
+        setRejectionReason("");
+        setRejectionError("");
       }
 
       setShowPopup(false);
@@ -307,6 +333,10 @@ const Service = () => {
   const cancelAction = () => {
     if (popupData?.type === "complete") {
       resetCompletionPhotoState();
+    }
+    if (popupData?.type === "reject") {
+      setRejectionReason("");
+      setRejectionError("");
     }
     setShowPopup(false);
     setPopupData(null);
@@ -579,7 +609,16 @@ const Service = () => {
                     </div>
                     <p className="text-xs text-gray-500 mt-2">คลิกที่รูปเพื่อดูขนาดเต็มหรือบันทึกเก็บไว้</p>
                   </div>
-                )}
+              )}
+
+              {job.status === "rejected" && (job.cancelReason || job.rejectionReason) && (
+                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+                  <h4 className="text-sm font-semibold text-red-700">เหตุผลที่ปฏิเสธงาน</h4>
+                  <p className="mt-1 text-sm text-red-600 whitespace-pre-line">
+                    {job.cancelReason || job.rejectionReason}
+                  </p>
+                </div>
+              )}
 
               <div className="mt-4 flex space-x-2">
                 {job.status === "pending" && (
@@ -621,6 +660,31 @@ const Service = () => {
               <h2 className="text-lg font-semibold mb-2 text-gray-800">{popupData.title}</h2>
               <p className="text-sm text-gray-600">{popupData.message}</p>
             </div>
+
+            {popupData.type === "reject" && (
+              <div className="mt-5 text-left space-y-2">
+                <label htmlFor="rejectReason" className="text-sm font-medium text-gray-700">
+                  กรุณาระบุเหตุผลในการปฏิเสธงาน
+                </label>
+                <textarea
+                  id="rejectReason"
+                  className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    rejectionError ? "border-red-500" : "border-gray-300"
+                  }`}
+                  rows={3}
+                  value={rejectionReason}
+                  onChange={(event) => {
+                    setRejectionReason(event.target.value);
+                    if (event.target.value.trim()) {
+                      setRejectionError("");
+                    }
+                  }}
+                  placeholder="เช่น ลูกค้ายกเลิกงาน หรือมีเหตุสุดวิสัย"
+                  disabled={popupSubmitting}
+                />
+                {rejectionError && <p className="text-sm text-red-600">{rejectionError}</p>}
+              </div>
+            )}
 
             {popupData.type === "complete" && (
               <div className="mt-5 text-left space-y-4">

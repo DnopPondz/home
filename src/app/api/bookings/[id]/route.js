@@ -66,7 +66,7 @@ export async function PATCH(req, { params }) {
   try {
     const { id } = params;
     const body = await req.json();
-    const { status, assignedTo, completionPhotos } = body;
+    const { status, assignedTo, completionPhotos, cancelReason, rejectionReason } = body;
 
     console.log('PATCH Request - ID:', id, 'Body:', body); // เพิ่ม logging
 
@@ -87,6 +87,29 @@ export async function PATCH(req, { params }) {
     }
     if (assignedTo && ObjectId.isValid(assignedTo)) {
       updateData.assignedTo = new ObjectId(assignedTo);
+    }
+
+    if (status === "rejected") {
+      const providedReason =
+        typeof rejectionReason === "string" && rejectionReason.trim()
+          ? rejectionReason.trim()
+          : typeof cancelReason === "string" && cancelReason.trim()
+          ? cancelReason.trim()
+          : "";
+
+      if (!providedReason) {
+        return new Response(
+          JSON.stringify({ message: "กรุณาระบุเหตุผลในการปฏิเสธงาน" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      updateData.cancelReason = providedReason;
+      updateData.rejectionReason = providedReason;
+      updateData.rejectedAt = new Date();
     }
 
     if (status === "completed") {
