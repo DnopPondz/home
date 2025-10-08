@@ -1,7 +1,6 @@
 "use client";
 
-// pages/admin/dashboard.js หรือ app/admin/dashboard/page.js
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import NavigationSwitcher from '../../../components/NavigationSwitcher';
 
@@ -33,7 +32,7 @@ export default function AdminDashboard() {
     error: null
   });
 
-  const formatCurrency = (value) => {
+  const formatCurrency = useCallback((value) => {
     if (typeof value !== 'number' || Number.isNaN(value)) {
       return '฿0';
     }
@@ -43,9 +42,9 @@ export default function AdminDashboard() {
       currency: 'THB',
       minimumFractionDigits: 0
     });
-  };
+  }, []);
 
-  const formatDateRange = (start, end) => {
+  const formatDateRange = useCallback((start, end) => {
     if (!start || !end) return '';
 
     const options = {
@@ -62,57 +61,48 @@ export default function AdminDashboard() {
     }
 
     return `${startDate.toLocaleDateString('th-TH', options)} - ${endDate.toLocaleDateString('th-TH', options)}`;
-  };
+  }, []);
 
-  // ฟังก์ชันดึงข้อมูลจาก API
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setDashboardData(prev => ({ ...prev, loading: true, error: null }));
 
-      // เรียก API พร้อมกัน
       const [servicesRes, bookingsRes, usersRes] = await Promise.all([
         axios.get('/api/services'),
         axios.get('/api/bookings'),
         axios.get('/api/users')
       ]);
 
-      // ดึงข้อมูลจาก response
       const servicesData = servicesRes.data;
       const bookingsData = bookingsRes.data;
       const usersData = usersRes.data;
 
-      // กรองข้อมูล users ตาม role
       const techUsers = usersData.filter(user => user.role === 'tech') || [];
       const customerUsers = usersData.filter(user => user.role === 'user') || [];
 
-      // กรองข้อมูลการจองตามสถานะ
-      const activeBookings = bookingsData.filter(booking => 
+      const activeBookings = bookingsData.filter(booking =>
         booking.status !== "completed" && booking.status !== "rejected"
       ) || [];
-      
-      const completedBookings = bookingsData.filter(booking => 
+
+      const completedBookings = bookingsData.filter(booking =>
         booking.status === "completed" || booking.status === "rejected"
       ) || [];
-      
-      const successfulBookings = bookingsData.filter(booking => 
+
+      const successfulBookings = bookingsData.filter(booking =>
         booking.status === "completed"
       ) || [];
-      
-      const cancelledBookings = bookingsData.filter(booking => 
+
+      const cancelledBookings = bookingsData.filter(booking =>
         booking.status === "rejected"
       ) || [];
 
-      const pendingBookings = bookingsData.filter(booking => 
+      const pendingBookings = bookingsData.filter(booking =>
         booking.status === "pending"
       ) || [];
 
-      const acceptBookings = bookingsData.filter(booking => 
+      const acceptBookings = bookingsData.filter(booking =>
         booking.status === "accepted"
       ) || [];
-
-     
-
-
 
       setDashboardData({
         totalServices: servicesData.length || 0,
@@ -129,9 +119,7 @@ export default function AdminDashboard() {
         error: null
       });
 
-      // อัปเดต timestamp หลังจากโหลดข้อมูลสำเร็จ
       setLastUpdated(new Date().toLocaleString('th-TH'));
-
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setDashboardData(prev => ({
@@ -140,7 +128,7 @@ export default function AdminDashboard() {
         error: 'เกิดข้อผิดพลาดในการโหลดข้อมูล'
       }));
     }
-  };
+  }, []);
 
   const loadSalesData = useCallback(async (range) => {
     try {
@@ -177,308 +165,450 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // โหลดข้อมูลเมื่อ component mount
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [fetchDashboardData]);
 
   useEffect(() => {
     loadSalesData(salesRange);
   }, [salesRange, loadSalesData]);
 
-  // ฟังก์ชันรีเฟรชข้อมูล
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     fetchDashboardData();
     loadSalesData(salesRange);
-  };
+  }, [fetchDashboardData, loadSalesData, salesRange]);
 
-  const timeRangeOptions = [
+  const timeRangeOptions = useMemo(() => [
     { value: 'week', label: '7 วัน' },
     { value: 'month', label: '1 เดือน' },
     { value: 'year', label: '1 ปี' }
-  ];
+  ], []);
 
-  const maxRevenue = salesData.services.reduce((max, service) => {
-    const revenue = typeof service.totalRevenue === 'number' ? service.totalRevenue : 0;
-    return revenue > max ? revenue : max;
-  }, 0);
+  const chartPalette = useMemo(
+    () => ['#e74c3c', '#f39c12', '#9b59b6', '#27ae60', '#3498db', '#ff6b6b', '#16a085', '#e67e22'],
+    []
+  );
+
+  const chartMeta = useMemo(() => {
+    const numericRevenues = salesData.services.map((service) =>
+      typeof service.totalRevenue === 'number' ? service.totalRevenue : 0
+    );
+
+    const maxRevenue = numericRevenues.reduce((max, revenue) => (revenue > max ? revenue : max), 0);
+
+    if (maxRevenue <= 0) {
+      return { maxRevenue: 0, step: 0, gridLines: [] };
+    }
+
+    const magnitude = Math.pow(10, Math.floor(Math.log10(maxRevenue)));
+    const normalized = maxRevenue / magnitude;
+    let niceFactor = 1;
+
+    if (normalized <= 1.2) {
+      niceFactor = 1.2;
+    } else if (normalized <= 1.5) {
+      niceFactor = 1.5;
+    } else if (normalized <= 2) {
+      niceFactor = 2;
+    } else if (normalized <= 5) {
+      niceFactor = 5;
+    } else {
+      niceFactor = 10;
+    }
+
+    const niceMax = niceFactor * magnitude;
+    const step = niceMax / 5;
+    const gridLines = Array.from({ length: 6 }, (_, index) => step * index);
+
+    return { maxRevenue: niceMax, step, gridLines };
+  }, [salesData.services]);
+
+  const statCards = useMemo(
+    () => [
+      {
+        key: 'totalServices',
+        label: 'บริการทั้งหมด',
+        accent: 'from-sky-500 to-blue-500',
+        value: dashboardData.totalServices,
+        icon: (
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+          />
+        )
+      },
+      {
+        key: 'totalBookings',
+        label: 'การจองทั้งหมด',
+        accent: 'from-emerald-500 to-teal-500',
+        value: dashboardData.totalBookings,
+        icon: (
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+          />
+        )
+      },
+      {
+        key: 'completedBookings',
+        label: 'การจบงาน',
+        accent: 'from-cyan-500 to-indigo-500',
+        value: dashboardData.completedBookings,
+        icon: (
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        )
+      },
+      {
+        key: 'totalUsers',
+        label: 'ผู้ใช้ทั้งหมด',
+        accent: 'from-fuchsia-500 to-purple-500',
+        value: dashboardData.totalUsers,
+        icon: (
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+          />
+        )
+      },
+      {
+        key: 'totalTechs',
+        label: 'ช่างทั้งหมด',
+        accent: 'from-amber-500 to-orange-500',
+        value: dashboardData.totalTechs,
+        icon: (
+          <>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+          </>
+        )
+      },
+      {
+        key: 'totalCustomers',
+        label: 'ลูกค้าทั้งหมด',
+        accent: 'from-blue-500 to-indigo-500',
+        value: dashboardData.totalCustomers,
+        icon: (
+          <>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            />
+          </>
+        )
+      }
+    ],
+    [dashboardData]
+  );
+
+  const insightCards = useMemo(
+    () => [
+      {
+        title: 'งานที่รอดำเนินการ',
+        value: dashboardData.pendingBookings,
+        description: 'คำสั่งจองที่ต้องติดตาม',
+        accent: 'bg-white/70 border border-orange-200/80 text-orange-600'
+      },
+      {
+        title: 'งานที่รับแล้ว',
+        value: dashboardData.acceptBookings,
+        description: 'ทีมช่างกำลังเตรียมการ',
+        accent: 'bg-white/70 border border-teal-200/80 text-teal-600'
+      },
+      {
+        title: 'งานสำเร็จ',
+        value: dashboardData.successfulBookings,
+        description: 'บริการที่ปิดงานเรียบร้อย',
+        accent: 'bg-white/70 border border-blue-200/80 text-blue-600'
+      },
+      {
+        title: 'งานยกเลิก',
+        value: dashboardData.cancelledBookings,
+        description: 'การจองที่ถูกยกเลิก',
+        accent: 'bg-white/70 border border-rose-200/80 text-rose-600'
+      }
+    ],
+    [dashboardData]
+  );
 
   return (
-    <div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-800">
       <NavigationSwitcher />
-      
-      {/* Main Content */}
-      <div className="bg-gray-100 min-h-screen">
-        <div className="p-6">
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800 mb-2">Dashboard</h2>
-                  <p className="text-gray-600">ภาพรวมของระบบจัดการบริการ</p>
-                </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12 space-y-8">
+        <header className="relative overflow-hidden rounded-3xl bg-white/70 backdrop-blur shadow-xl ring-1 ring-slate-200/70">
+          <div className="absolute inset-y-0 right-0 w-2/5 bg-gradient-to-l from-blue-400/30 via-indigo-400/20 to-transparent" />
+          <div className="relative px-6 py-8 lg:px-10 lg:py-12">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div>
+                <p className="text-sm uppercase tracking-[0.3em] text-blue-500 font-semibold">Admin Insight</p>
+                <h1 className="mt-3 text-3xl sm:text-4xl font-extrabold text-slate-900">
+                  ภาพรวมการให้บริการทั้งหมดในระบบ
+                </h1>
+                <p className="mt-4 max-w-xl text-base text-slate-600">
+                  ตรวจสอบยอดการจองและรายได้จากแต่ละบริการ พร้อมเลือกดูข้อมูลย้อนหลังตามช่วงเวลาที่ต้องการ
+                  เพื่อวางแผนและตัดสินใจได้อย่างมั่นใจ
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-stretch gap-3">
                 <button
                   onClick={handleRefresh}
                   disabled={dashboardData.loading || salesData.loading}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg transition-colors"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all duration-200 hover:shadow-xl disabled:opacity-70"
                 >
-                  {dashboardData.loading || salesData.loading ? 'กำลังโหลด...' : 'รีเฟรช'}
+                  <span>{dashboardData.loading || salesData.loading ? 'กำลังโหลดข้อมูล' : 'รีเฟรชข้อมูล'}</span>
                 </button>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {dashboardData.error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
-                <p>{dashboardData.error}</p>
-              </div>
-            )}
-
-            {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
-              {/* Total Services */}
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-blue-100 text-blue-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">บริการทั้งหมด</h3>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {dashboardData.loading ? '...' : dashboardData.totalServices.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Total Bookings (Active) */}
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-green-100 text-green-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">การจองทั้งหมด</h3>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {dashboardData.loading ? '...' : dashboardData.totalBookings.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Completed Bookings */}
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-teal-100 text-teal-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className=" ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">การจบงาน</h3>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {dashboardData.loading ? '...' : dashboardData.completedBookings.toLocaleString()}
-                    </p>
-                    {/* <div className=" space-x-4 mt-2 text-xs">
-                      <span className="text-green-600">
-                        สำเร็จ: {dashboardData.loading ? '...' : dashboardData.successfulBookings.toLocaleString()}
-                      </span>
-                      <span className="text-red-600">
-                        ยกเลิก: {dashboardData.loading ? '...' : dashboardData.cancelledBookings.toLocaleString()}
-                      </span>
-                    </div> */}
-                  </div>
-                </div>
-              </div>
-
-              {/* Total Users */}
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-purple-100 text-purple-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">ผู้ใช้ทั้งหมด</h3>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {dashboardData.loading ? '...' : dashboardData.totalUsers.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Total Techs */}
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-orange-100 text-orange-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">ช่างทั้งหมด</h3>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {dashboardData.loading ? '...' : dashboardData.totalTechs.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Total Customers */}
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-indigo-100 text-indigo-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-sm font-medium text-gray-500">ลูกค้าทั้งหมด</h3>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {dashboardData.loading ? '...' : dashboardData.totalCustomers.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Sales Overview */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800">ยอดขายตามบริการ</h3>
-                  <p className="text-sm text-gray-500">
-                    {formatDateRange(salesData.startDate, salesData.endDate) || 'เลือกช่วงเวลาที่ต้องการดูยอดขาย'}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {timeRangeOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => setSalesRange(option.value)}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                        salesRange === option.value
-                          ? 'bg-blue-600 text-white border-blue-600 shadow'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600'
-                      }`}
-                      disabled={salesData.loading && salesRange === option.value}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">ยอดขายรวม</p>
-                  <p className="mt-1 text-2xl font-bold text-blue-900">{formatCurrency(salesData.totalRevenue)}</p>
-                </div>
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">จำนวนคำสั่งจอง</p>
-                  <p className="mt-1 text-2xl font-bold text-green-900">{Number(salesData.totalBookings || 0).toLocaleString('th-TH')}</p>
-                </div>
-                <div className="p-4 bg-indigo-50 rounded-lg md:col-span-1">
-                  <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wide">บริการที่มีคำสั่งจอง</p>
-                  <p className="mt-1 text-2xl font-bold text-indigo-900">{salesData.services.length.toLocaleString('th-TH')}</p>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                {salesData.loading ? (
-                  <div className="h-56 flex items-center justify-center text-gray-500">กำลังโหลดข้อมูลยอดขาย...</div>
-                ) : salesData.error ? (
-                  <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
-                    {salesData.error}
-                  </div>
-                ) : salesData.services.length === 0 ? (
-                  <div className="h-56 flex flex-col items-center justify-center text-gray-500 text-sm">
-                    <p>ไม่มีข้อมูลยอดขายในช่วงเวลาที่เลือก</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <div className="flex items-end gap-6 min-h-[14rem] pb-6">
-                      {salesData.services.map((service) => {
-                        const revenue = typeof service.totalRevenue === 'number' ? service.totalRevenue : 0;
-                        const bookingsCount = Number(service.totalBookings || 0);
-                        const key = service.serviceId || service.serviceName;
-                        const heightPercent = maxRevenue > 0 ? Math.max((revenue / maxRevenue) * 100, revenue > 0 ? 8 : 0) : 0;
-
-                        return (
-                          <div key={key} className="flex flex-col items-center flex-1 min-w-[120px]">
-                            <span className="text-xs text-gray-500 font-medium mb-2">
-                              {formatCurrency(revenue)}
-                            </span>
-                            <div className="w-full max-w-[120px] h-48 bg-blue-50 rounded-lg relative overflow-hidden">
-                              <div className="absolute inset-x-4 bottom-0 flex justify-center">
-                                <div
-                                  className="w-full rounded-t-lg bg-gradient-to-t from-blue-600 via-blue-500 to-blue-400 shadow-md"
-                                  style={{ height: `${Math.min(heightPercent, 100)}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                            <div className="mt-3 text-center">
-                              <p className="text-sm font-semibold text-gray-700 break-words">{service.serviceName || 'ไม่ระบุบริการ'}</p>
-                              <p className="text-xs text-gray-500 mt-1">{bookingsCount.toLocaleString('th-TH')} งาน</p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                {lastUpdated && (
+                  <div className="rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-3 text-xs text-slate-500">
+                    <p className="font-semibold text-slate-700">อัปเดตล่าสุด</p>
+                    <p>{lastUpdated}</p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Additional Info */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">สรุปข้อมูลระบบ</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <div className="text-blue-600 font-semibold">บริการ</div>
-                  <div className="text-gray-700">มีบริการทั้งหมด {dashboardData.totalServices} รายการ</div>
-                </div>
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <div className="text-green-600 font-semibold">การจอง</div>
-                  <div className="text-gray-700">การจองทั้งหมด {dashboardData.totalBookings} ครั้ง</div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    งานที่รอ {dashboardData.pendingBookings} | รับงานแล้ว {dashboardData.acceptBookings}
+            {dashboardData.error && (
+              <div className="mt-6 rounded-2xl border border-rose-200/70 bg-rose-50/80 px-5 py-4 text-sm text-rose-700 shadow-sm">
+                <p>{dashboardData.error}</p>
+              </div>
+            )}
+          </div>
+        </header>
+
+        <section>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-4 lg:gap-6">
+            {statCards.map((card, index) => (
+              <div
+                key={card.key}
+                className="group relative overflow-hidden rounded-3xl bg-white/80 p-6 shadow-lg shadow-slate-200/60 transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl"
+              >
+                <div className={`absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-gradient-to-br ${card.accent} blur-3xl`} />
+                <div className="relative flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div className="rounded-2xl bg-gradient-to-br from-slate-100 via-white to-white p-3 shadow-inner">
+                      <svg className="h-7 w-7 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {card.icon}
+                      </svg>
+                    </div>
+                    <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">#{index + 1}</span>
                   </div>
-                </div>
-                <div className="p-4 bg-teal-50 rounded-lg">
-                  <div className="text-teal-600 font-semibold">การจบงาน</div>
-                  <div className="text-gray-700">จบงานแล้ว {dashboardData.completedBookings} ครั้ง</div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    สำเร็จ {dashboardData.successfulBookings} | ยกเลิก {dashboardData.cancelledBookings}
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">{card.label}</p>
+                    <p className="mt-2 text-3xl font-semibold text-slate-900">
+                      {dashboardData.loading ? '…' : Number(card.value || 0).toLocaleString('th-TH')}
+                    </p>
                   </div>
-                </div>
-                <div className="p-4 bg-orange-50 rounded-lg">
-                  <div className="text-orange-600 font-semibold">ช่างเทคนิค</div>
-                  <div className="text-gray-700">มีช่างทั้งหมด {dashboardData.totalTechs} คน</div>
-                </div>
-                <div className="p-4 bg-indigo-50 rounded-lg">
-                  <div className="text-indigo-600 font-semibold">ลูกค้า</div>
-                  <div className="text-gray-700">มีลูกค้าทั้งหมด {dashboardData.totalCustomers} คน</div>
                 </div>
               </div>
-              
-              {/* Last Updated Info */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-xs text-gray-500">
-                  {lastUpdated && `อัปเดตล่าสุด: ${lastUpdated}`}
-                </p>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-3xl bg-white/80 p-6 lg:p-10 shadow-lg shadow-slate-200/70 ring-1 ring-slate-100/70">
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">ยอดขายตามบริการ</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {formatDateRange(salesData.startDate, salesData.endDate) || 'เลือกช่วงเวลาเพื่อดูยอดขายย้อนหลัง'}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {timeRangeOptions.map((option) => {
+                const isActive = salesRange === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => setSalesRange(option.value)}
+                    disabled={salesData.loading && isActive}
+                    className={`inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
+                      isActive
+                        ? 'border-transparent bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="rounded-2xl border border-blue-200/70 bg-blue-50/70 p-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-blue-500">ยอดขายรวม</p>
+              <p className="mt-3 text-3xl font-bold text-blue-900">{formatCurrency(salesData.totalRevenue)}</p>
+            </div>
+            <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-500">จำนวนคำสั่งจอง</p>
+              <p className="mt-3 text-3xl font-bold text-emerald-900">
+                {Number(salesData.totalBookings || 0).toLocaleString('th-TH')}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-violet-200/70 bg-violet-50/70 p-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-violet-500">บริการที่มีคำสั่งจอง</p>
+              <p className="mt-3 text-3xl font-bold text-violet-900">
+                {salesData.services.length.toLocaleString('th-TH')}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-10">
+            {salesData.loading ? (
+              <div className="flex h-72 items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50/70 text-sm text-slate-500">
+                กำลังโหลดข้อมูลยอดขาย...
+              </div>
+            ) : salesData.error ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
+                {salesData.error}
+              </div>
+            ) : salesData.services.length === 0 ? (
+              <div className="flex h-72 flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50/70 text-sm text-slate-500">
+                <p>ไม่มีข้อมูลยอดขายในช่วงเวลาที่เลือก</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <div className="min-w-[640px]">
+                  <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-inner">
+                    <div className="flex flex-col gap-4">
+                      <div className="text-center">
+                        <h3 className="text-xl font-semibold text-indigo-600">ภาพรวมยอดขายบริการ</h3>
+                        <p className="text-xs uppercase tracking-widest text-rose-500">จำนวนยอดขาย (บาท)</p>
+                      </div>
+                      <div className="relative mt-4 grid grid-cols-[60px_minmax(0,1fr)] gap-4">
+                        <div className="flex flex-col justify-between py-2 text-right text-xs font-semibold text-slate-400">
+                          {chartMeta.gridLines
+                            .slice()
+                            .reverse()
+                            .map((value) => (
+                              <span key={`axis-${value}`}>{value === 0 ? '0' : formatCurrency(value).replace('฿', '')}</span>
+                            ))}
+                        </div>
+                        <div className="relative overflow-hidden">
+                          <div className="absolute inset-0 flex flex-col justify-between py-2">
+                            {chartMeta.gridLines
+                              .slice()
+                              .reverse()
+                              .map((value, index) => (
+                                <div
+                                  key={`grid-${value}-${index}`}
+                                  className={`h-px w-full ${index === chartMeta.gridLines.length - 1 ? 'opacity-0' : 'bg-slate-100'}`}
+                                />
+                              ))}
+                          </div>
+                          <div className="relative flex items-end justify-around gap-4 pb-6">
+                            {salesData.services.map((service, index) => {
+                              const revenue = typeof service.totalRevenue === 'number' ? service.totalRevenue : 0;
+                              const bookingsCount = Number(service.totalBookings || 0);
+                              const key = service.serviceId || service.serviceName || index;
+                              const heightPercent = chartMeta.maxRevenue > 0
+                                ? Math.max((revenue / chartMeta.maxRevenue) * 100, revenue > 0 ? 10 : 0)
+                                : 0;
+                              const barColor = chartPalette[index % chartPalette.length];
+
+                              return (
+                                <div key={key} className="flex w-36 flex-col items-center gap-3">
+                                  <div className="text-xs font-semibold text-slate-500">{formatCurrency(revenue)}</div>
+                                  <div className="flex h-48 w-full items-end">
+                                    <div
+                                      className="relative flex w-full items-end justify-center rounded-t-3xl transition-all duration-300"
+                                      style={{ height: `${Math.min(heightPercent, 100)}%` }}
+                                    >
+                                      <div
+                                        className="w-full rounded-t-3xl shadow-lg"
+                                        style={{ background: `linear-gradient(180deg, ${barColor} 0%, ${barColor}bf 80%, ${barColor} 100%)` }}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-sm font-semibold text-slate-700 leading-tight break-words">
+                                      {service.serviceName || 'ไม่ระบุบริการ'}
+                                    </p>
+                                    <p className="text-xs text-slate-400">{bookingsCount.toLocaleString('th-TH')} งาน</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6 lg:gap-8">
+          <div className="rounded-3xl border border-slate-100 bg-white/80 p-6 shadow-lg shadow-slate-200/70">
+            <h3 className="text-xl font-semibold text-slate-900">ภาพรวมสถานะงาน</h3>
+            <p className="mt-2 text-sm text-slate-500">สรุปสถานะของการจองทั้งหมดในระบบล่าสุด</p>
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {insightCards.map((item) => (
+                <div
+                  key={item.title}
+                  className={`rounded-2xl p-5 shadow-inner transition-transform duration-200 hover:-translate-y-1 ${item.accent}`}
+                >
+                  <p className="text-sm font-semibold">{item.title}</p>
+                  <p className="mt-2 text-2xl font-bold">{Number(item.value || 0).toLocaleString('th-TH')}</p>
+                  <p className="mt-1 text-xs text-current/80">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-3xl border border-slate-100 bg-gradient-to-br from-indigo-500 via-purple-500 to-blue-500 p-6 shadow-xl text-white">
+            <h3 className="text-xl font-semibold">ข้อมูลสรุประบบ</h3>
+            <p className="mt-2 text-sm text-white/70">
+              ใช้ข้อมูลเชิงลึกเพื่อวางแผนทรัพยากรและเตรียมทีมช่างให้พร้อมสำหรับงานในอนาคต
+            </p>
+            <div className="mt-6 space-y-5 text-sm">
+              <div className="flex items-center justify-between rounded-2xl bg-white/10 px-4 py-3">
+                <span className="font-medium">จำนวนบริการทั้งหมด</span>
+                <span className="font-semibold">{dashboardData.totalServices.toLocaleString('th-TH')}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-2xl bg-white/10 px-4 py-3">
+                <span className="font-medium">การจองทั้งหมด</span>
+                <span className="font-semibold">{dashboardData.totalBookings.toLocaleString('th-TH')}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-2xl bg-white/10 px-4 py-3">
+                <span className="font-medium">ทีมช่าง</span>
+                <span className="font-semibold">{dashboardData.totalTechs.toLocaleString('th-TH')}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-2xl bg-white/10 px-4 py-3">
+                <span className="font-medium">ลูกค้า</span>
+                <span className="font-semibold">{dashboardData.totalCustomers.toLocaleString('th-TH')}</span>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }
