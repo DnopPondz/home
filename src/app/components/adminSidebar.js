@@ -30,7 +30,7 @@ const AdminSidebar = () => {
       icon: Shield,
       label: "Dashboard",
       href: "/page/admin/dashboard",
-      roles: ["admin", "tech"],
+      roles: ["admin", "worker"],
     },
     {
       icon: Tag,
@@ -42,14 +42,14 @@ const AdminSidebar = () => {
       icon: Bell,
       label: "Service Order & History",
       href: "/page/admin/service",
-      roles: ["admin", "tech"],
+      roles: ["admin", "worker"],
     },
     {
       // icon: BarChart3,
       icon: Star,
       label: "Customer Review",
       href: "/page/admin/history",
-      roles: ["admin", "tech"],
+      roles: ["admin", "worker"],
     },
     {
       icon: Users,
@@ -61,7 +61,7 @@ const AdminSidebar = () => {
       icon: Clipboard,
       label: "My Employee",
       href: "/page/admin/setting",
-      roles: ["admin", "tech"],
+      roles: ["admin", "worker"],
     },
   ];
 

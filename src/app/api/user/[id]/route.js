@@ -23,6 +23,7 @@ const sanitizeUser = (userDoc) => {
     imageUrl,
     avatar: imageUrl,
     role: userDoc.role || "user",
+    workerApplicationStatus: userDoc.workerApplicationStatus || "none",
   };
 };
 

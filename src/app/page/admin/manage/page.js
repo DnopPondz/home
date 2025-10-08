@@ -554,7 +554,7 @@ const MobileUserCard = ({ user, onRoleChange, onDeleteUser }) => {
           >
             <option value="user">User</option>
             <option value="admin">Admin</option>
-            <option value="tech">Tech</option>
+            <option value="worker">Worker</option>
           </select>
         </div>
       </div>
@@ -577,6 +577,18 @@ export default function ManageUsers() {
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const resolvePrimaryRole = (role) => {
+    if (Array.isArray(role)) {
+      if (role.includes("admin")) return "admin";
+      if (role.includes("worker")) return "worker";
+      return role[0] || "user";
+    }
+    return role || "user";
+  };
+
+  const hasRole = (role, value) =>
+    Array.isArray(role) ? role.includes(value) : role === value;
 
   useEffect(() => {
     fetchUsers();
@@ -847,23 +859,23 @@ export default function ManageUsers() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            user.role === "admin"
+                            hasRole(user.role, "admin")
                               ? "bg-purple-100 text-purple-800"
-                              : user.role === "tech"
+                              : hasRole(user.role, "worker")
                               ? "bg-yellow-100 text-yellow-800"
                               : "bg-gray-100 text-gray-800"
                           }`}
                         >
-                          {user.role === "admin"
+                          {hasRole(user.role, "admin")
                             ? "Admin"
-                            : user.role === "tech"
-                            ? "Tech"
+                            : hasRole(user.role, "worker")
+                            ? "Worker"
                             : "User"}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <select
-                          value={user.role}
+                          value={resolvePrimaryRole(user.role)}
                           onChange={(e) =>
                             handleRoleChange(user._id, e.target.value)
                           }
@@ -871,7 +883,7 @@ export default function ManageUsers() {
                         >
                           <option value="user">User</option>
                           <option value="admin">Admin</option>
-                          <option value="tech">Tech</option>
+                          <option value="worker">Worker</option>
                         </select>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">

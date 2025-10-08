@@ -75,7 +75,7 @@ export default function AdminDashboard() {
     pendingBookings: 0,
     acceptBookings: 0,
     totalUsers: 0,
-    totalTechs: 0,
+    totalWorkers: 0,
     totalCustomers: 0,
     loading: true,
     error: null
@@ -138,8 +138,16 @@ export default function AdminDashboard() {
       const bookingsData = bookingsRes.data;
       const usersData = usersRes.data;
 
-      const techUsers = usersData.filter(user => user.role === 'tech') || [];
-      const customerUsers = usersData.filter(user => user.role === 'user') || [];
+      const workerUsers = usersData.filter(user =>
+        Array.isArray(user.role)
+          ? user.role.includes('worker')
+          : user.role === 'worker'
+      ) || [];
+      const customerUsers = usersData.filter(user =>
+        Array.isArray(user.role)
+          ? user.role.includes('user') && !user.role.includes('worker')
+          : user.role === 'user'
+      ) || [];
 
       const activeBookings = bookingsData.filter(booking =>
         booking.status !== "completed" && booking.status !== "rejected"
@@ -174,7 +182,7 @@ export default function AdminDashboard() {
         acceptBookings: acceptBookings.length,
         pendingBookings: pendingBookings.length,
         totalUsers: usersData.length || 0,
-        totalTechs: techUsers.length,
+        totalWorkers: workerUsers.length,
         totalCustomers: customerUsers.length,
         loading: false,
         error: null
@@ -364,10 +372,10 @@ export default function AdminDashboard() {
         )
       },
       {
-        key: 'totalTechs',
-        label: 'ช่างทั้งหมด',
+        key: 'totalWorkers',
+        label: 'พนักงานภาคสนามทั้งหมด',
         accent: 'from-amber-500 to-orange-500',
-        value: dashboardData.totalTechs,
+        value: dashboardData.totalWorkers,
         icon: (
           <>
             <path
@@ -680,7 +688,7 @@ export default function AdminDashboard() {
               </div>
               <div className="flex items-center justify-between rounded-2xl bg-white/10 px-4 py-3">
                 <span className="font-medium">ทีมช่าง</span>
-                <span className="font-semibold">{dashboardData.totalTechs.toLocaleString('th-TH')}</span>
+                <span className="font-semibold">{dashboardData.totalWorkers.toLocaleString('th-TH')}</span>
               </div>
               <div className="flex items-center justify-between rounded-2xl bg-white/10 px-4 py-3">
                 <span className="font-medium">ลูกค้า</span>
