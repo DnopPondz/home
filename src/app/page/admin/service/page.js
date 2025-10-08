@@ -14,6 +14,8 @@ import {
   ImagePlus,
   Trash2,
   Loader2,
+  Image,
+  Maximize2,
 } from "lucide-react";
 import { AuthContext } from "@/app/context/AuthContext.js"; // ปรับ path ให้ตรงกับโปรเจกต์ของคุณ
 
@@ -31,6 +33,7 @@ const Service = () => {
   const [completionPhotoError, setCompletionPhotoError] = useState("");
   const [photoInputKey, setPhotoInputKey] = useState(0);
   const [popupSubmitting, setPopupSubmitting] = useState(false);
+  const [photoViewer, setPhotoViewer] = useState({ open: false, src: "", title: "" });
 
   const completionPhotosRef = useRef([]);
   completionPhotosRef.current = completionPhotos;
@@ -365,6 +368,61 @@ const Service = () => {
     return `data:${slip.contentType};base64,${slip.data}`;
   };
 
+  const getCompletionPhotoPreview = (photo) => {
+    if (!photo) return null;
+    if (typeof photo === "string") {
+      if (
+        photo.startsWith("data:") ||
+        photo.startsWith("http://") ||
+        photo.startsWith("https://") ||
+        photo.startsWith("/")
+      ) {
+        return photo;
+      }
+      return null;
+    }
+
+    if (typeof photo.dataUrl === "string" && photo.dataUrl) {
+      return photo.dataUrl;
+    }
+
+    let rawData = "";
+    if (typeof photo.data === "string") {
+      rawData = photo.data;
+    } else if (typeof photo.base64 === "string") {
+      rawData = photo.base64;
+    }
+
+    if (!rawData) return null;
+
+    if (rawData.startsWith("data:")) {
+      return rawData;
+    }
+
+    const contentType = photo.contentType || photo.type || "image/jpeg";
+    return `data:${contentType};base64,${rawData}`;
+  };
+
+  const openPhotoViewer = (photo, index) => {
+    const preview = getCompletionPhotoPreview(photo);
+    if (!preview) return;
+
+    const filename =
+      (typeof photo === "object" &&
+        (photo.filename || photo.name || (photo.metadata && photo.metadata.filename))) ||
+      "";
+
+    setPhotoViewer({
+      open: true,
+      src: preview,
+      title: filename ? `${index + 1}. ${filename}` : `รูปที่ ${index + 1}`,
+    });
+  };
+
+  const closePhotoViewer = () => {
+    setPhotoViewer({ open: false, src: "", title: "" });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm border-b">
@@ -477,6 +535,51 @@ const Service = () => {
                   </div>
                 </div>
               )}
+
+              {job.status === "completed" &&
+                Array.isArray(job.completionPhotos) &&
+                job.completionPhotos.length > 0 && (
+                  <div className="mt-6">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
+                      <Image className="w-4 h-4" />
+                      <span>รูปหลังทำความสะอาด</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {job.completionPhotos.map((photo, index) => {
+                        const preview = getCompletionPhotoPreview(photo);
+                        if (!preview) return null;
+
+                        const label =
+                          (typeof photo === "object" &&
+                            (photo.filename || photo.name || (photo.metadata && photo.metadata.filename))) ||
+                          "";
+
+                        return (
+                          <button
+                            key={`${job._id}-completion-${index}`}
+                            type="button"
+                            onClick={() => openPhotoViewer(photo, index)}
+                            className="group relative overflow-hidden rounded-lg border border-gray-200 bg-gray-50 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <img
+                              src={preview}
+                              alt={`รูปหลังทำความสะอาด ${index + 1}`}
+                              className="w-full h-32 object-cover transition-transform duration-200 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-x-0 bottom-0 bg-black/50 text-white text-xs px-2 py-1 flex items-center justify-between gap-2">
+                              <span>รูปที่ {index + 1}</span>
+                              <span className="flex items-center gap-1">
+                                <Maximize2 className="w-3 h-3" />
+                                {label && <span className="max-w-[8rem] truncate">{label}</span>}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">คลิกที่รูปเพื่อดูขนาดเต็มหรือบันทึกเก็บไว้</p>
+                  </div>
+                )}
 
               <div className="mt-4 flex space-x-2">
                 {job.status === "pending" && (
@@ -599,6 +702,49 @@ const Service = () => {
                 {popupSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 {popupSubmitting ? "กำลังบันทึก..." : "ยืนยัน"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {photoViewer.open && (
+        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center px-4 py-6">
+          <div className="relative w-full max-w-3xl">
+            <button
+              type="button"
+              onClick={closePhotoViewer}
+              className="absolute -top-10 right-0 text-white/80 hover:text-white"
+              aria-label="ปิดภาพตัวอย่าง"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div className="bg-white rounded-lg shadow-2xl overflow-hidden">
+              <img
+                src={photoViewer.src}
+                alt={photoViewer.title || "รูปหลังทำความสะอาด"}
+                className="w-full max-h-[75vh] object-contain bg-black"
+              />
+              <div className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="text-sm font-medium text-gray-700 truncate">
+                  {photoViewer.title || "รูปหลังทำความสะอาด"}
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <a
+                    href={photoViewer.src}
+                    download
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    ดาวน์โหลดรูป
+                  </a>
+                  <button
+                    type="button"
+                    onClick={closePhotoViewer}
+                    className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    ปิดหน้าต่าง
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
