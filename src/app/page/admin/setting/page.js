@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search,
   Plus,
@@ -25,24 +25,10 @@ const SettingService = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedServices, setSelectedServices] = useState([]);
-  const [completedJobs, setCompletedJobs] = useState(0);
   const [applications, setApplications] = useState([]);
   const [applicationsLoading, setApplicationsLoading] = useState(true);
   const [processingApplicationId, setProcessingApplicationId] = useState(null);
   const [actionMessage, setActionMessage] = useState({ type: '', message: '' });
-
-  useEffect(() => {
-    const fetchCompletedJobs = async () => {
-      try {
-        const res = await axios.get("/api/bookings?status=completed");
-        setCompletedJobs(res.data.length);  // สมมติว่า API ส่ง array ของ booking กลับมา
-      } catch (error) {
-        console.error('ไม่สามารถโหลดข้อมูลงานที่เสร็จได้:', error);
-      }
-    };
-
-    fetchCompletedJobs();
-  }, []);
 
   const showActionMessage = (message, type = 'success') => {
     setActionMessage({ type, message });
@@ -61,16 +47,156 @@ const SettingService = () => {
       if (showLoader) {
         setLoading(true);
       }
-      const res = await axios.get("/api/users");
+      const [usersRes, bookingsRes] = await Promise.all([
+        axios.get("/api/users"),
+        axios.get("/api/bookings"),
+      ]);
 
-      // Filter users with role "worker"
-      const workerUsers = res.data.filter(user =>
+      const toArray = (data) => {
+        if (Array.isArray(data)) return data;
+        if (data && typeof data === 'object') {
+          if (Array.isArray(data.data)) return data.data;
+          if (Array.isArray(data.results)) return data.results;
+          if (Array.isArray(data.items)) return data.items;
+        }
+        return [];
+      };
+
+      const usersData = toArray(usersRes.data);
+      const bookingsData = toArray(bookingsRes.data);
+
+      const normalizeId = (value) => {
+        if (!value) return null;
+        if (typeof value === 'string') return value;
+        if (typeof value === 'object') {
+          if (value.$oid) return value.$oid;
+          if (typeof value.toString === 'function') {
+            const stringified = value.toString();
+            if (stringified && stringified !== '[object Object]') {
+              return stringified;
+            }
+          }
+        }
+        return String(value);
+      };
+
+      const normalizeStatus = (value) => {
+        const status = String(value || '').toLowerCase();
+        if (!status) return 'other';
+        if (['pending', 'รอดำเนินการ'].includes(status)) return 'pending';
+        if (['accepted', 'กำลังดำเนินการ', 'กำลังทำ', 'in progress'].includes(status)) return 'accepted';
+        if (['completed', 'เสร็จสิ้น', 'จบงาน', 'สำเร็จ'].includes(status)) return 'completed';
+        if (['rejected', 'ยกเลิก', 'ถูกยกเลิก', 'cancelled', 'canceled'].includes(status)) return 'rejected';
+        return 'other';
+      };
+
+      const workerUsers = usersData.filter((user) =>
         Array.isArray(user.role)
           ? user.role.includes('worker')
           : user.role === 'worker'
       );
-      setUsers(workerUsers);
-      setFilteredUsers(workerUsers);
+
+      const workerBaseEntries = workerUsers
+        .map((worker) => {
+          const workerId = normalizeId(worker._id);
+          if (!workerId) return null;
+
+          return [
+            workerId,
+            {
+              ...worker,
+              _id: workerId,
+              workerId,
+              firstName: worker.firstName || '',
+              lastName: worker.lastName || '',
+              email: worker.email || '',
+              phone: worker.phone || '',
+              location: worker.location || '',
+              services: Array.isArray(worker.services) ? worker.services : [],
+              imageUrl: worker.imageUrl || worker.image || '',
+              createdAt: worker.createdAt || worker.created_at || null,
+              description: worker.description || '',
+              total: 0,
+              pending: 0,
+              accepted: 0,
+              completed: 0,
+              rejected: 0,
+              ratingTotal: 0,
+              ratingCount: 0,
+            },
+          ];
+        })
+        .filter(Boolean);
+
+      const workerStatsMap = new Map(workerBaseEntries);
+      const collator = new Intl.Collator('th-TH');
+
+      let totalRatingCount = 0;
+
+      bookingsData.forEach((booking) => {
+        const normalizedStatus = normalizeStatus(booking.status);
+        const workerId = normalizeId(booking.assignedTo);
+        if (!workerId) {
+          return;
+        }
+
+        if (!workerStatsMap.has(workerId)) {
+          const fallbackName = booking.assignedToName || booking.workerName || 'ไม่พบข้อมูลพนักงาน';
+          workerStatsMap.set(workerId, {
+            workerId,
+            _id: workerId,
+            firstName: fallbackName,
+            lastName: '',
+            email: booking.workerEmail || '',
+            phone: booking.workerPhone || '',
+            location: '',
+            services: [],
+            imageUrl: '',
+            createdAt: null,
+            description: '',
+            total: 0,
+            pending: 0,
+            accepted: 0,
+            completed: 0,
+            rejected: 0,
+            ratingTotal: 0,
+            ratingCount: 0,
+          });
+        }
+
+        const stats = workerStatsMap.get(workerId);
+        stats.total += 1;
+
+        if (normalizedStatus === 'pending') stats.pending += 1;
+        if (normalizedStatus === 'accepted') stats.accepted += 1;
+        if (normalizedStatus === 'completed') stats.completed += 1;
+        if (normalizedStatus === 'rejected') stats.rejected += 1;
+
+        const ratingSource =
+          booking.rating ?? booking.reviewDetail?.rating ?? booking.review?.rating;
+        const ratingValue = Number(ratingSource);
+        if (Number.isFinite(ratingValue) && ratingValue > 0) {
+          stats.ratingTotal += ratingValue;
+          stats.ratingCount += 1;
+          totalRatingCount += 1;
+        }
+      });
+
+      const workers = Array.from(workerStatsMap.values())
+        .map((stats) => ({
+          ...stats,
+          averageRating:
+            stats.ratingCount > 0 ? stats.ratingTotal / stats.ratingCount : 0,
+        }))
+        .sort((a, b) => {
+          if (b.total !== a.total) return b.total - a.total;
+          const nameA = `${a.firstName || ''} ${a.lastName || ''}`.trim();
+          const nameB = `${b.firstName || ''} ${b.lastName || ''}`.trim();
+          return collator.compare(nameA, nameB);
+        });
+
+      setUsers(workers);
+      setFilteredUsers(workers);
     } catch (error) {
       console.error('ไม่สามารถโหลดข้อมูลผู้ใช้ได้:', error);
       showActionMessage('ไม่สามารถโหลดข้อมูลพนักงานได้', 'error');
@@ -118,7 +244,7 @@ const SettingService = () => {
     let filtered = users;
 
     if (searchTerm) {
-      filtered = filtered.filter(user => 
+      filtered = filtered.filter(user =>
         `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.phone.includes(searchTerm)
@@ -134,6 +260,56 @@ const SettingService = () => {
     setFilteredUsers(filtered);
   }, [searchTerm, selectedServices, users]);
 
+  const workforceMetrics = useMemo(() => {
+    const baseSummary = {
+      totalWorkers: Array.isArray(users) ? users.length : 0,
+      availableWorkers: 0,
+      totalJobs: 0,
+      activeJobs: 0,
+      pendingJobs: 0,
+      acceptedJobs: 0,
+      completedJobs: 0,
+      rejectedJobs: 0,
+      reviewCount: 0,
+      averageRating: 0,
+    };
+
+    if (!Array.isArray(users) || users.length === 0) {
+      return baseSummary;
+    }
+
+    let ratingWeightedSum = 0;
+
+    users.forEach((worker) => {
+      const pending = Number(worker.pending || 0);
+      const accepted = Number(worker.accepted || 0);
+      const completed = Number(worker.completed || 0);
+      const rejected = Number(worker.rejected || 0);
+      const total = Number(worker.total || pending + accepted + completed + rejected);
+      const ratingCount = Number(worker.ratingCount || 0);
+      const averageRating = Number(worker.averageRating || 0);
+
+      baseSummary.totalJobs += total;
+      baseSummary.pendingJobs += pending;
+      baseSummary.acceptedJobs += accepted;
+      baseSummary.completedJobs += completed;
+      baseSummary.rejectedJobs += rejected;
+      baseSummary.activeJobs += pending + accepted;
+
+      if (pending + accepted === 0) {
+        baseSummary.availableWorkers += 1;
+      }
+
+      ratingWeightedSum += averageRating * ratingCount;
+      baseSummary.reviewCount += ratingCount;
+    });
+
+    baseSummary.averageRating =
+      baseSummary.reviewCount > 0 ? ratingWeightedSum / baseSummary.reviewCount : 0;
+
+    return baseSummary;
+  }, [users]);
+
   const handleServiceFilter = (service) => {
     setSelectedServices(prev =>
       prev.includes(service)
@@ -142,9 +318,7 @@ const SettingService = () => {
     );
   };
 
-  const getStatusColor = (status) => {
-    return status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-  };
+  const formatNumber = (value) => Number(value || 0).toLocaleString('th-TH');
 
   const getRatingStars = (rating) => {
     return '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
@@ -377,7 +551,9 @@ const SettingService = () => {
               <Users className="h-8 w-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">พนักงานทั้งหมด</p>
-                <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {workforceMetrics.totalWorkers.toLocaleString('th-TH')}
+                </p>
               </div>
             </div>
           </div>
@@ -386,7 +562,12 @@ const SettingService = () => {
               <Activity className="h-8 w-8 text-green-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">พนักงานที่พร้อมรับงาน</p>
-                <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {workforceMetrics.availableWorkers.toLocaleString('th-TH')}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  จากพนักงานทั้งหมด {workforceMetrics.totalWorkers.toLocaleString('th-TH')} คน
+                </p>
               </div>
             </div>
           </div>
@@ -395,7 +576,12 @@ const SettingService = () => {
               <Calendar className="h-8 w-8 text-purple-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">งานที่เสร็จ</p>
-                <p className="text-2xl font-bold text-gray-900">{completedJobs}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {workforceMetrics.completedJobs.toLocaleString('th-TH')}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  งานทั้งหมด {workforceMetrics.totalJobs.toLocaleString('th-TH')} งาน
+                </p>
               </div>
             </div>
           </div>
@@ -407,13 +593,67 @@ const SettingService = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">คะแนนเฉลี่ย</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {users.length > 0 ? 
-                    (users.reduce((sum, user) => sum + (user.rating || 0), 0) / users.length).toFixed(1) : 
-                    '0.0'
-                  }
+                  {workforceMetrics.averageRating.toFixed(1)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  จากรีวิวทั้งหมด {workforceMetrics.reviewCount.toLocaleString('th-TH')} รายการ
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow mb-8 p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">ภาพรวมสถานะงานของทีม</h2>
+              <p className="text-sm text-gray-500">
+                ตรวจสอบจำนวนงานทั้งหมดที่อยู่ในแต่ละสถานะเพื่อวางแผนการกระจายงานให้เหมาะสม
+              </p>
+            </div>
+            <span className="inline-flex items-center rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-600">
+              ทั้งหมด {workforceMetrics.totalJobs.toLocaleString('th-TH')} งาน
+            </span>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-amber-600">รอดำเนินการ</p>
+              <p className="mt-2 text-2xl font-bold text-amber-900">
+                {workforceMetrics.pendingJobs.toLocaleString('th-TH')}
+              </p>
+              <p className="text-xs text-amber-700 mt-1">รอการตอบรับจากพนักงาน</p>
+            </div>
+            <div className="rounded-xl border border-sky-100 bg-sky-50/70 p-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-sky-600">กำลังดำเนินงาน</p>
+              <p className="mt-2 text-2xl font-bold text-sky-900">
+                {workforceMetrics.acceptedJobs.toLocaleString('th-TH')}
+              </p>
+              <p className="text-xs text-sky-700 mt-1">งานที่พนักงานกำลังปฏิบัติอยู่</p>
+            </div>
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600">จบงานแล้ว</p>
+              <p className="mt-2 text-2xl font-bold text-emerald-900">
+                {workforceMetrics.completedJobs.toLocaleString('th-TH')}
+              </p>
+              <p className="text-xs text-emerald-700 mt-1">งานที่ดำเนินการเสร็จสมบูรณ์</p>
+            </div>
+            <div className="rounded-xl border border-rose-100 bg-rose-50/70 p-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-rose-600">ถูกยกเลิก</p>
+              <p className="mt-2 text-2xl font-bold text-rose-900">
+                {workforceMetrics.rejectedJobs.toLocaleString('th-TH')}
+              </p>
+              <p className="text-xs text-rose-700 mt-1">งานที่ลูกค้าหรือระบบยกเลิก</p>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3 text-sm text-gray-600">
+            <span className="inline-flex items-center rounded-full bg-indigo-50 px-4 py-1.5 text-indigo-600">
+              งานที่กำลังดำเนินอยู่ทั้งหมด {workforceMetrics.activeJobs.toLocaleString('th-TH')} งาน
+            </span>
+            <span className="inline-flex items-center rounded-full bg-slate-100 px-4 py-1.5 text-slate-600">
+              คะแนนเฉลี่ยจากลูกค้า {workforceMetrics.averageRating.toFixed(1)} จาก {workforceMetrics.reviewCount.toLocaleString('th-TH')} รีวิว
+            </span>
           </div>
         </div>
 
@@ -468,15 +708,18 @@ const SettingService = () => {
                   <div className="flex items-center">
                     <div className="h-12 w-12 rounded-full overflow-hidden">
                       {user.imageUrl ? (
-                        <img 
-                          src={user.imageUrl} 
+                        <img
+                          src={user.imageUrl}
                           alt={`${user.firstName} ${user.lastName}`}
                           className="w-full h-full object-cover"
                         />
                       ) : (
                         <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
                           <span className="text-blue-600 font-bold text-lg">
-                            {user.firstName.charAt(0)}
+                            {(user.firstName || user.lastName || user.email || '?')
+                              .toString()
+                              .charAt(0)
+                              .toUpperCase()}
                           </span>
                         </div>
                       )}
@@ -513,7 +756,7 @@ const SettingService = () => {
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
                     <Calendar className="h-4 w-4 mr-2" />
-                    เข้าร่วมเมื่อ {new Date(user.createdAt).toLocaleDateString('th-TH')}
+                    เข้าร่วมเมื่อ {user.createdAt ? new Date(user.createdAt).toLocaleDateString('th-TH') : '-'}
                   </div>
                 </div>
 
@@ -536,17 +779,68 @@ const SettingService = () => {
                   <p className="text-sm text-gray-600">{user.description || 'ยังไม่มีข้อมูลรายละเอียด'}</p>
                 </div>
 
-                <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-                  <div className="text-sm">
-                    <span className="text-gray-600">งานที่เสร็จ: </span>
-                    <span className="font-semibold">{user.completedJobs || 0}</span>
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">สรุปงานของพนักงาน</p>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-lg bg-slate-100 px-3 py-2">
+                      <p className="text-xs uppercase tracking-wide text-slate-500">งานทั้งหมด</p>
+                      <p className="mt-1 text-lg font-semibold text-slate-900">
+                        {formatNumber(
+                          user.total ||
+                            Number(user.pending || 0) +
+                            Number(user.accepted || 0) +
+                            Number(user.completed || 0) +
+                            Number(user.rejected || 0)
+                        )}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-indigo-100/70 px-3 py-2">
+                      <p className="text-xs uppercase tracking-wide text-indigo-700">งานที่กำลังดำเนินอยู่</p>
+                      <p className="mt-1 text-lg font-semibold text-indigo-900">
+                        {formatNumber(Number(user.pending || 0) + Number(user.accepted || 0))}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-emerald-100/70 px-3 py-2">
+                      <p className="text-xs uppercase tracking-wide text-emerald-700">งานที่เสร็จแล้ว</p>
+                      <p className="mt-1 text-lg font-semibold text-emerald-900">
+                        {formatNumber(user.completed || 0)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-rose-100/70 px-3 py-2">
+                      <p className="text-xs uppercase tracking-wide text-rose-700">งานถูกยกเลิก</p>
+                      <p className="mt-1 text-lg font-semibold text-rose-900">
+                        {formatNumber(user.rejected || 0)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-sm">
-                    <span className="text-gray-600">คะแนน: </span>
-                    <span className="font-semibold">{user.rating || '5'}</span>
-                    {user.rating && (
-                      <span className="text-yellow-500 ml-1">{getRatingStars(user.rating)}</span>
-                    )}
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600">
+                    <span className="inline-flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-1.5">
+                      <span>รอดำเนินการ</span>
+                      <span className="font-semibold text-slate-900">{formatNumber(user.pending || 0)}</span>
+                    </span>
+                    <span className="inline-flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-1.5">
+                      <span>กำลังทำ</span>
+                      <span className="font-semibold text-slate-900">{formatNumber(user.accepted || 0)}</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-gray-200 pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-gray-500">คะแนนเฉลี่ยจากลูกค้า</p>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-semibold text-gray-900">
+                          {Number(user.averageRating || 0).toFixed(1)}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          ({formatNumber(user.ratingCount || 0)} รีวิว)
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-yellow-500 text-lg font-semibold">
+                      {getRatingStars(Number(user.averageRating || 0))}
+                    </div>
                   </div>
                 </div>
               </div>

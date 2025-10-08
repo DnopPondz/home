@@ -77,6 +77,8 @@ export default function AdminDashboard() {
     totalUsers: 0,
     totalWorkers: 0,
     totalCustomers: 0,
+    averageRating: 0,
+    reviewCount: 0,
     loading: true,
     error: null
   });
@@ -92,6 +94,8 @@ export default function AdminDashboard() {
     loading: true,
     error: null
   });
+
+  const [workerAssignments, setWorkerAssignments] = useState([]);
 
   const formatCurrency = useCallback((value) => {
     if (typeof value !== 'number' || Number.isNaN(value)) {
@@ -138,6 +142,31 @@ export default function AdminDashboard() {
       const bookingsData = bookingsRes.data;
       const usersData = usersRes.data;
 
+      const normalizeId = (value) => {
+        if (!value) return null;
+        if (typeof value === 'string') return value;
+        if (typeof value === 'object') {
+          if (value.$oid) return value.$oid;
+          if (typeof value.toString === 'function') {
+            const stringified = value.toString();
+            if (stringified && stringified !== '[object Object]') {
+              return stringified;
+            }
+          }
+        }
+        return String(value);
+      };
+
+      const normalizeStatus = (value) => {
+        const status = String(value || '').toLowerCase();
+        if (!status) return 'other';
+        if (['pending', 'รอดำเนินการ'].includes(status)) return 'pending';
+        if (['accepted', 'กำลังดำเนินการ', 'กำลังทำ', 'in progress'].includes(status)) return 'accepted';
+        if (['completed', 'เสร็จสิ้น', 'จบงาน', 'สำเร็จ'].includes(status)) return 'completed';
+        if (['rejected', 'ยกเลิก', 'ถูกยกเลิก', 'cancelled', 'canceled'].includes(status)) return 'rejected';
+        return 'other';
+      };
+
       const workerUsers = usersData.filter(user =>
         Array.isArray(user.role)
           ? user.role.includes('worker')
@@ -149,29 +178,122 @@ export default function AdminDashboard() {
           : user.role === 'user'
       ) || [];
 
-      const activeBookings = bookingsData.filter(booking =>
-        booking.status !== "completed" && booking.status !== "rejected"
-      ) || [];
+      const workerBaseEntries = workerUsers
+        .map((worker) => {
+          const workerId = normalizeId(worker._id);
+          if (!workerId) return null;
+          const nameParts = [worker.firstName, worker.lastName].filter(Boolean);
+          const displayName = nameParts.length > 0
+            ? nameParts.join(' ')
+            : worker.email || 'ไม่ทราบชื่อ';
+          return [workerId, {
+            workerId,
+            name: displayName,
+            phone: worker.phone || '',
+            total: 0,
+            pending: 0,
+            accepted: 0,
+            completed: 0,
+            rejected: 0,
+            ratingTotal: 0,
+            ratingCount: 0
+          }];
+        })
+        .filter(Boolean);
 
-      const completedBookings = bookingsData.filter(booking =>
-        booking.status === "completed" || booking.status === "rejected"
-      ) || [];
+      const workerStatsMap = new Map(workerBaseEntries);
+      const collator = new Intl.Collator('th-TH');
 
-      const successfulBookings = bookingsData.filter(booking =>
-        booking.status === "completed"
-      ) || [];
+      let totalRatingSum = 0;
+      let totalRatingCount = 0;
 
-      const cancelledBookings = bookingsData.filter(booking =>
-        booking.status === "rejected"
-      ) || [];
+      const activeBookings = [];
+      const completedBookings = [];
+      const successfulBookings = [];
+      const cancelledBookings = [];
+      const pendingBookings = [];
+      const acceptBookings = [];
 
-      const pendingBookings = bookingsData.filter(booking =>
-        booking.status === "pending"
-      ) || [];
+      bookingsData.forEach((booking) => {
+        const normalizedStatus = normalizeStatus(booking.status);
 
-      const acceptBookings = bookingsData.filter(booking =>
-        booking.status === "accepted"
-      ) || [];
+        if (normalizedStatus !== 'completed' && normalizedStatus !== 'rejected') {
+          activeBookings.push(booking);
+        }
+        if (normalizedStatus === 'completed' || normalizedStatus === 'rejected') {
+          completedBookings.push(booking);
+        }
+        if (normalizedStatus === 'completed') {
+          successfulBookings.push(booking);
+        }
+        if (normalizedStatus === 'rejected') {
+          cancelledBookings.push(booking);
+        }
+        if (normalizedStatus === 'pending') {
+          pendingBookings.push(booking);
+        }
+        if (normalizedStatus === 'accepted') {
+          acceptBookings.push(booking);
+        }
+
+        const workerId = normalizeId(booking.assignedTo);
+        if (!workerId) {
+          return;
+        }
+
+        if (!workerStatsMap.has(workerId)) {
+          const fallbackName = booking.assignedToName || 'ไม่พบข้อมูลพนักงาน';
+          workerStatsMap.set(workerId, {
+            workerId,
+            name: fallbackName,
+            phone: '',
+            total: 0,
+            pending: 0,
+            accepted: 0,
+            completed: 0,
+            rejected: 0,
+            ratingTotal: 0,
+            ratingCount: 0
+          });
+        }
+
+        const stats = workerStatsMap.get(workerId);
+        stats.total += 1;
+
+        if (normalizedStatus === 'pending') stats.pending += 1;
+        if (normalizedStatus === 'accepted') stats.accepted += 1;
+        if (normalizedStatus === 'completed') stats.completed += 1;
+        if (normalizedStatus === 'rejected') stats.rejected += 1;
+
+        const ratingSource = booking.rating ?? booking.reviewDetail?.rating;
+        const ratingValue = Number(ratingSource);
+        if (Number.isFinite(ratingValue) && ratingValue > 0) {
+          stats.ratingTotal += ratingValue;
+          stats.ratingCount += 1;
+          totalRatingSum += ratingValue;
+          totalRatingCount += 1;
+        }
+      });
+
+      const workerStats = Array.from(workerStatsMap.values()).map((stats) => ({
+        workerId: stats.workerId,
+        name: stats.name,
+        phone: stats.phone,
+        total: stats.total,
+        pending: stats.pending,
+        accepted: stats.accepted,
+        completed: stats.completed,
+        rejected: stats.rejected,
+        ratingCount: stats.ratingCount,
+        averageRating: stats.ratingCount > 0 ? stats.ratingTotal / stats.ratingCount : 0
+      })).sort((a, b) => {
+        if (b.total !== a.total) return b.total - a.total;
+        return collator.compare(a.name || '', b.name || '');
+      });
+
+      const averageRating = totalRatingCount > 0 ? totalRatingSum / totalRatingCount : 0;
+
+      setWorkerAssignments(workerStats);
 
       setDashboardData({
         totalServices: servicesData.length || 0,
@@ -184,6 +306,8 @@ export default function AdminDashboard() {
         totalUsers: usersData.length || 0,
         totalWorkers: workerUsers.length,
         totalCustomers: customerUsers.length,
+        averageRating,
+        reviewCount: totalRatingCount,
         loading: false,
         error: null
       });
@@ -196,6 +320,7 @@ export default function AdminDashboard() {
         loading: false,
         error: 'เกิดข้อผิดพลาดในการโหลดข้อมูล'
       }));
+      setWorkerAssignments([]);
     }
   }, []);
 
@@ -358,6 +483,27 @@ export default function AdminDashboard() {
         )
       },
       {
+        key: 'averageRating',
+        label: 'คะแนนรีวิวเฉลี่ย',
+        accent: 'from-amber-400 to-amber-500',
+        value: dashboardData.averageRating,
+        subtitle:
+          dashboardData.reviewCount > 0
+            ? `${dashboardData.reviewCount.toLocaleString('th-TH')} รีวิว`
+            : 'ยังไม่มีรีวิวจากลูกค้า',
+        loadingSubtitle: 'กำลังคำนวณคะแนน...',
+        formatValue: (value, isLoading) =>
+          isLoading ? '…' : Number(value || 0).toFixed(1),
+        icon: (
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M11.48 3.499a.562.562 0 011.04 0l1.18 3.63a.563.563 0 00.532.39h3.813a.563.563 0 01.332 1.017l-3.08 2.24a.563.563 0 00-.204.631l1.18 3.63a.563.563 0 01-.865.631l-3.08-2.24a.563.563 0 00-.66 0l-3.08 2.24a.563.563 0 01-.865-.631l1.18-3.63a.563.563 0 00-.204-.631l-3.08-2.24a.563.563 0 01.332-1.017h3.813a.563.563 0 00.532-.39l1.18-3.63z"
+          />
+        )
+      },
+      {
         key: 'totalUsers',
         label: 'ผู้ใช้ทั้งหมด',
         accent: 'from-fuchsia-500 to-purple-500',
@@ -494,30 +640,42 @@ export default function AdminDashboard() {
 
         <section>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-4 lg:gap-6">
-            {statCards.map((card, index) => (
-              <div
-                key={card.key}
-                className="group relative overflow-hidden rounded-3xl bg-white/80 p-6 shadow-lg shadow-slate-200/60 transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl"
-              >
-                <div className={`absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-gradient-to-br ${card.accent} blur-3xl`} />
-                <div className="relative flex flex-col gap-4">
-                  <div className="flex items-center justify-between">
-                    <div className="rounded-2xl bg-gradient-to-br from-slate-100 via-white to-white p-3 shadow-inner">
-                      <svg className="h-7 w-7 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        {card.icon}
-                      </svg>
+            {statCards.map((card, index) => {
+              const displayValue = card.formatValue
+                ? card.formatValue(card.value, dashboardData.loading)
+                : dashboardData.loading
+                ? '…'
+                : Number(card.value || 0).toLocaleString('th-TH');
+              const subtitleText = dashboardData.loading
+                ? card.loadingSubtitle
+                : card.subtitle;
+
+              return (
+                <div
+                  key={card.key}
+                  className="group relative overflow-hidden rounded-3xl bg-white/80 p-6 shadow-lg shadow-slate-200/60 transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl"
+                >
+                  <div className={`absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-gradient-to-br ${card.accent} blur-3xl`} />
+                  <div className="relative flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <div className="rounded-2xl bg-gradient-to-br from-slate-100 via-white to-white p-3 shadow-inner">
+                        <svg className="h-7 w-7 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          {card.icon}
+                        </svg>
+                      </div>
+                      <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">#{index + 1}</span>
                     </div>
-                    <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">#{index + 1}</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">{card.label}</p>
-                    <p className="mt-2 text-3xl font-semibold text-slate-900">
-                      {dashboardData.loading ? '…' : Number(card.value || 0).toLocaleString('th-TH')}
-                    </p>
+                    <div>
+                      <p className="text-sm font-medium text-slate-500">{card.label}</p>
+                      <p className="mt-2 text-3xl font-semibold text-slate-900">{displayValue}</p>
+                      {subtitleText && (
+                        <p className="mt-1 text-xs font-medium text-slate-400">{subtitleText}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -696,6 +854,121 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-3xl border border-slate-100 bg-white/80 p-6 lg:p-8 shadow-lg shadow-slate-200/70">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-xl font-semibold text-slate-900">ภาพรวมงานของพนักงานภาคสนาม</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                ตรวจสอบจำนวนงานที่ได้รับมอบหมาย พร้อมสถานะการทำงานของแต่ละพนักงานแบบเรียลไทม์
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-600">
+              <svg className="h-3.5 w-3.5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M11.48 3.499a.562.562 0 011.04 0l1.18 3.63a.563.563 0 00.532.39h3.813a.563.563 0 01.332 1.017l-3.08 2.24a.563.563 0 00-.204.631l1.18 3.63a.563.563 0 01-.865.631l-3.08-2.24a.563.563 0 00-.66 0l-3.08 2.24a.563.563 0 01-.865-.631l1.18-3.63a.563.563 0 00-.204-.631l-3.08-2.24a.563.563 0 01.332-1.017h3.813a.563.563 0 00.532-.39l1.18-3.63z"
+                />
+              </svg>
+              <span>
+                รีวิวทั้งหมด{' '}
+                {dashboardData.loading
+                  ? '…'
+                  : `${dashboardData.reviewCount.toLocaleString('th-TH')} รายการ`}
+              </span>
+            </div>
+          </div>
+
+          {dashboardData.loading ? (
+            <div className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-10 text-center text-sm text-slate-500">
+              กำลังโหลดข้อมูลพนักงาน...
+            </div>
+          ) : workerAssignments.length === 0 ? (
+            <div className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-10 text-center text-sm text-slate-500">
+              ยังไม่มีการมอบหมายงานให้พนักงาน
+            </div>
+          ) : (
+            <div className="mt-6 overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">พนักงาน</th>
+                    <th className="px-4 py-3 text-center">งานทั้งหมด</th>
+                    <th className="px-4 py-3 text-center">รอดำเนินการ</th>
+                    <th className="px-4 py-3 text-center">กำลังทำ</th>
+                    <th className="px-4 py-3 text-center">จบงาน</th>
+                    <th className="px-4 py-3 text-center">ยกเลิก</th>
+                    <th className="px-4 py-3 text-center">คะแนนรีวิว</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {workerAssignments.map((worker) => (
+                    <tr
+                      key={worker.workerId || worker.name}
+                      className="bg-white transition-colors even:bg-slate-50/60 hover:bg-slate-100/60"
+                    >
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <div className="font-semibold text-slate-900">{worker.name}</div>
+                        {worker.phone && (
+                          <div className="text-xs text-slate-500">{worker.phone}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex min-w-[3rem] justify-center rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
+                          {Number(worker.total || 0).toLocaleString('th-TH')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex min-w-[3rem] justify-center rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-700">
+                          {Number(worker.pending || 0).toLocaleString('th-TH')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex min-w-[3rem] justify-center rounded-full bg-sky-100 px-3 py-1 text-sm font-semibold text-sky-700">
+                          {Number(worker.accepted || 0).toLocaleString('th-TH')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex min-w-[3rem] justify-center rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
+                          {Number(worker.completed || 0).toLocaleString('th-TH')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex min-w-[3rem] justify-center rounded-full bg-rose-100 px-3 py-1 text-sm font-semibold text-rose-700">
+                          {Number(worker.rejected || 0).toLocaleString('th-TH')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {worker.ratingCount > 0 ? (
+                          <div className="inline-flex flex-col items-center gap-1">
+                            <span className="flex items-center gap-1 text-sm font-semibold text-amber-600">
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={1.5}
+                                  d="M11.48 3.499a.562.562 0 011.04 0l1.18 3.63a.563.563 0 00.532.39h3.813a.563.563 0 01.332 1.017l-3.08 2.24a.563.563 0 00-.204.631l1.18 3.63a.563.563 0 01-.865.631l-3.08-2.24a.563.563 0 00-.66 0l-3.08 2.24a.563.563 0 01-.865-.631l1.18-3.63a.563.563 0 00-.204-.631l-3.08-2.24a.563.563 0 01.332-1.017h3.813a.563.563 0 00.532-.39l1.18-3.63z"
+                                />
+                              </svg>
+                              {Number(worker.averageRating || 0).toFixed(1)}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {Number(worker.ratingCount || 0).toLocaleString('th-TH')} รีวิว
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400">ยังไม่มีรีวิว</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </main>
     </div>
