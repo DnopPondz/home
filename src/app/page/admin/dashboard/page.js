@@ -231,27 +231,13 @@ export default function AdminDashboard() {
       return { maxRevenue: 0, step: 0, gridLines: [] };
     }
 
-    const magnitude = Math.pow(10, Math.floor(Math.log10(maxRevenue)));
-    const normalized = maxRevenue / magnitude;
-    let niceFactor = 1;
+    const divisions = 4;
+    const rawStep = maxRevenue / divisions;
+    const gridLines = Array.from({ length: divisions + 1 }, (_, index) =>
+      index === divisions ? maxRevenue : rawStep * index
+    );
 
-    if (normalized <= 1.2) {
-      niceFactor = 1.2;
-    } else if (normalized <= 1.5) {
-      niceFactor = 1.5;
-    } else if (normalized <= 2) {
-      niceFactor = 2;
-    } else if (normalized <= 5) {
-      niceFactor = 5;
-    } else {
-      niceFactor = 10;
-    }
-
-    const niceMax = niceFactor * magnitude;
-    const step = niceMax / 5;
-    const gridLines = Array.from({ length: 6 }, (_, index) => step * index);
-
-    return { maxRevenue: niceMax, step, gridLines };
+    return { maxRevenue, step: rawStep, gridLines };
   }, [salesData.services]);
 
   const statCards = useMemo(
@@ -559,7 +545,7 @@ export default function AdminDashboard() {
                               const bookingsCount = Number(service.totalBookings || 0);
                               const key = service.serviceId || service.serviceName || index;
                               const heightPercent = chartMeta.maxRevenue > 0
-                                ? Math.max((revenue / chartMeta.maxRevenue) * 100, revenue > 0 ? 10 : 0)
+                                ? Math.min((revenue / chartMeta.maxRevenue) * 100, 100)
                                 : 0;
                               const barColor = chartPalette[index % chartPalette.length];
                               const gradient = `linear-gradient(180deg, ${toRgba(barColor, 0.95)} 0%, ${toRgba(
