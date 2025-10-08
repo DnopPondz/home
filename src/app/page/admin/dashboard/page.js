@@ -545,7 +545,11 @@ export default function AdminDashboard() {
                               const bookingsCount = Number(service.totalBookings || 0);
                               const key = service.serviceId || service.serviceName || index;
                               const heightPercent = chartMeta.maxRevenue > 0
-                                ? Math.min((revenue / chartMeta.maxRevenue) * 100, 100)
+                                ? (revenue / chartMeta.maxRevenue) * 100
+                                : 0;
+                              const boundedHeight = Math.min(Math.max(heightPercent, 0), 100);
+                              const fillHeight = revenue > 0
+                                ? Math.max(boundedHeight, 4)
                                 : 0;
                               const barColor = chartPalette[index % chartPalette.length];
                               const gradient = `linear-gradient(180deg, ${toRgba(barColor, 0.95)} 0%, ${toRgba(
@@ -558,12 +562,16 @@ export default function AdminDashboard() {
                                   <div className="text-xs font-semibold text-slate-500">{formatCurrency(revenue)}</div>
                                   <div className="flex h-48 w-full items-end">
                                     <div
-                                      className="relative flex w-full items-end justify-center rounded-t-3xl transition-all duration-300"
-                                      style={{ height: `${Math.min(heightPercent, 100)}%` }}
+                                      className="relative flex h-full w-full items-end justify-center rounded-t-3xl"
                                     >
                                       <div
-                                        className="w-full rounded-t-3xl shadow-lg"
-                                        style={{ background: gradient, border: `1px solid ${toRgba(barColor, 0.35)}`, boxShadow: `0 16px 30px -18px ${toRgba(barColor, 0.85)}` }}
+                                        className="w-full rounded-t-3xl shadow-lg transition-[height] duration-500"
+                                        style={{
+                                          height: `${fillHeight}%`,
+                                          background: gradient,
+                                          border: `1px solid ${toRgba(barColor, 0.35)}`,
+                                          boxShadow: `0 16px 30px -18px ${toRgba(barColor, 0.85)}`
+                                        }}
                                       />
                                     </div>
                                   </div>
