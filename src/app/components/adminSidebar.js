@@ -30,7 +30,7 @@ const AdminSidebar = () => {
       icon: Shield,
       label: "Dashboard",
       href: "/page/admin/dashboard",
-      roles: ["admin", "worker"],
+      roles: ["admin"],
     },
     {
       icon: Tag,
@@ -61,7 +61,7 @@ const AdminSidebar = () => {
       icon: Clipboard,
       label: "My Employee",
       href: "/page/admin/setting",
-      roles: ["admin", "worker"],
+      roles: ["admin"],
     },
   ];
 
