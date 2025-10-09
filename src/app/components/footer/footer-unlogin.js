@@ -56,8 +56,8 @@ const FooterUnLoginPage = () => {
                   บริษัท โฮมเซอร์วิสเซส จำกัด
                 </h2>
                 <p className="text-sm md:text-sm lg:text-sm text-gray-700 leading-relaxed">
-                  452 ซอยสุขุมวิท 79 แขวงพระโขนงเหนือ เขตวัฒนา กรุงเทพมหานคร
-                  10260
+                  126/57
+                  50000
                 </p>
               </div>
 
