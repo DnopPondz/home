@@ -71,7 +71,6 @@ export async function GET(req) {
 
     const match = {
       createdAt: { $gte: startDate, $lte: endDate },
-      status: { $ne: "rejected" },
     };
 
     const bookings = await bookingsCollection.find(match).toArray();
@@ -102,13 +101,35 @@ export async function GET(req) {
       });
     }
 
+    const normalizeStatus = (value) => {
+      const status = String(value || "").toLowerCase();
+      if (!status) return "other";
+
+      if (["completed", "เสร็จสิ้น", "จบงาน", "สำเร็จ"].includes(status)) {
+        return "completed";
+      }
+
+      if (["rejected", "ยกเลิก", "ถูกยกเลิก", "cancelled", "canceled"].includes(status)) {
+        return "rejected";
+      }
+
+      return "other";
+    };
+
     const salesMap = new Map();
     let totalRevenue = 0;
-    let countedBookings = 0;
+    let totalCompletedBookings = 0;
+    let totalCancelledRevenue = 0;
+    let totalCancelledBookings = 0;
 
     for (const booking of bookings) {
       const revenue = parseAmount(booking);
       if (revenue < 0) {
+        continue;
+      }
+
+      const normalizedStatus = normalizeStatus(booking?.status);
+      if (normalizedStatus !== "completed" && normalizedStatus !== "rejected") {
         continue;
       }
 
@@ -120,27 +141,46 @@ export async function GET(req) {
         salesMap.set(key, {
           serviceId: serviceIdString,
           serviceName,
-          totalRevenue: 0,
-          totalBookings: 0,
+          completedRevenue: 0,
+          completedBookings: 0,
+          cancelledRevenue: 0,
+          cancelledBookings: 0,
         });
       }
 
       const entry = salesMap.get(key);
-      entry.totalRevenue += revenue;
-      entry.totalBookings += 1;
+      if (normalizedStatus === "completed") {
+        entry.completedRevenue += revenue;
+        entry.completedBookings += 1;
+        totalRevenue += revenue;
+        totalCompletedBookings += 1;
+      }
 
-      totalRevenue += revenue;
-      countedBookings += 1;
+      if (normalizedStatus === "rejected") {
+        entry.cancelledRevenue += revenue;
+        entry.cancelledBookings += 1;
+        totalCancelledRevenue += revenue;
+        totalCancelledBookings += 1;
+      }
     }
 
-    const services = Array.from(salesMap.values()).sort((a, b) => b.totalRevenue - a.totalRevenue);
+    const services = Array.from(salesMap.values())
+      .filter((service) => service.completedBookings > 0 || service.cancelledBookings > 0)
+      .map((service) => ({
+        ...service,
+        totalRevenue: service.completedRevenue,
+        totalBookings: service.completedBookings,
+      }))
+      .sort((a, b) => b.completedRevenue - a.completedRevenue);
 
     return NextResponse.json({
       range,
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
       totalRevenue,
-      totalBookings: countedBookings,
+      totalBookings: totalCompletedBookings,
+      totalCancelledRevenue,
+      totalCancelledBookings,
       services,
       currency: "THB",
     });

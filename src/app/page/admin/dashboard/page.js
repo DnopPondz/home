@@ -89,6 +89,8 @@ export default function AdminDashboard() {
     services: [],
     totalRevenue: 0,
     totalBookings: 0,
+    totalCancelledRevenue: 0,
+    totalCancelledBookings: 0,
     startDate: null,
     endDate: null,
     loading: true,
@@ -336,6 +338,8 @@ export default function AdminDashboard() {
         services = [],
         totalRevenue = 0,
         totalBookings = 0,
+        totalCancelledRevenue = 0,
+        totalCancelledBookings = 0,
         startDate = null,
         endDate = null
       } = response.data || {};
@@ -344,6 +348,8 @@ export default function AdminDashboard() {
         services,
         totalRevenue,
         totalBookings,
+        totalCancelledRevenue,
+        totalCancelledBookings,
         startDate,
         endDate,
         loading: false,
@@ -384,11 +390,22 @@ export default function AdminDashboard() {
   );
 
   const chartMeta = useMemo(() => {
-    const numericRevenues = salesData.services.map((service) =>
-      typeof service.totalRevenue === 'number' ? service.totalRevenue : 0
-    );
+    const revenueValues = salesData.services.flatMap((service) => {
+      const completedRevenue = typeof service.completedRevenue === 'number'
+        ? service.completedRevenue
+        : typeof service.totalRevenue === 'number'
+        ? service.totalRevenue
+        : 0;
+      const cancelledRevenue = typeof service.cancelledRevenue === 'number'
+        ? service.cancelledRevenue
+        : typeof service.totalCancelledRevenue === 'number'
+        ? service.totalCancelledRevenue
+        : 0;
 
-    const rawMax = numericRevenues.reduce((max, revenue) => (revenue > max ? revenue : max), 0);
+      return [completedRevenue, cancelledRevenue];
+    });
+
+    const rawMax = revenueValues.reduce((max, revenue) => (revenue > max ? revenue : max), 0);
 
     if (rawMax <= 0) {
       return { axisMax: 0, ticks: [0, 0, 0, 0, 0] };
@@ -400,29 +417,68 @@ export default function AdminDashboard() {
     return { axisMax, ticks };
   }, [salesData.services]);
 
-  const chartColumns = useMemo(() => {
+  const chartGroups = useMemo(() => {
+    if (!Array.isArray(salesData.services)) {
+      return [];
+    }
+
     return salesData.services.map((service, index) => {
-      const revenue = typeof service.totalRevenue === 'number' ? service.totalRevenue : 0;
-      const bookingsCount = Number(service.totalBookings || 0);
+      const completedRevenue = typeof service.completedRevenue === 'number'
+        ? service.completedRevenue
+        : typeof service.totalRevenue === 'number'
+        ? service.totalRevenue
+        : 0;
+      const cancelledRevenue = typeof service.cancelledRevenue === 'number'
+        ? service.cancelledRevenue
+        : typeof service.totalCancelledRevenue === 'number'
+        ? service.totalCancelledRevenue
+        : 0;
+
+      const completedBookings = Number(service.completedBookings ?? service.totalBookings ?? 0);
+      const cancelledBookings = Number(service.cancelledBookings ?? 0);
+
       const key = service.serviceId || service.serviceName || index;
-      const barColor = chartPalette[index % chartPalette.length];
-      const heightPercent = chartMeta.axisMax > 0 ? (revenue / chartMeta.axisMax) * 100 : 0;
-      const boundedHeight = Math.min(Math.max(heightPercent, 0), 100);
-      const heightValue = Number.isFinite(boundedHeight) ? boundedHeight : 0;
-      const heightString = `${heightValue.toFixed(2)}%`;
-      const labelBottom = heightValue > 0 ? `calc(${heightValue.toFixed(2)}% + 16px)` : '16px';
+      const completedBarColor = chartPalette[index % chartPalette.length];
+      const cancelledBarColor = '#c4b5fd';
+
+      const computeBar = (value) => {
+        const heightPercent = chartMeta.axisMax > 0 ? (value / chartMeta.axisMax) * 100 : 0;
+        const boundedHeight = Math.min(Math.max(heightPercent, 0), 100);
+        const heightValue = Number.isFinite(boundedHeight) ? boundedHeight : 0;
+        const labelBottom = heightValue > 4 ? `calc(${heightValue.toFixed(2)}% + 16px)` : '24px';
+
+        return {
+          heightValue,
+          heightString: `${heightValue.toFixed(2)}%`,
+          labelBottom,
+        };
+      };
+
+      const completedBar = computeBar(completedRevenue);
+      const cancelledBar = computeBar(cancelledRevenue);
 
       return {
         key,
         serviceName: service.serviceName || 'ไม่ระบุบริการ',
-        bookingsCount,
-        revenue,
-        barColor,
-        heightString,
-        labelBottom
+        completed: {
+          revenue: completedRevenue,
+          bookings: completedBookings,
+          color: completedBarColor,
+          gradient: buildBarGradient(completedBarColor),
+          heightString: completedBar.heightString,
+          labelBottom: completedBar.labelBottom,
+        },
+        cancelled: {
+          revenue: cancelledRevenue,
+          bookings: cancelledBookings,
+          color: cancelledBarColor,
+          gradient: buildBarGradient(cancelledBarColor),
+          heightString: cancelledBar.heightString,
+          labelBottom: cancelledBar.labelBottom,
+        },
       };
     });
-  }, [salesData.services, chartMeta.axisMax, chartPalette]);
+  }, [chartMeta.axisMax, chartPalette, salesData.services]);
 
   const formatAxisTick = useCallback((value) => {
     if (typeof value !== 'number' || Number.isNaN(value)) {
@@ -714,15 +770,18 @@ export default function AdminDashboard() {
               <p className="mt-3 text-3xl font-bold text-blue-900">{formatCurrency(salesData.totalRevenue)}</p>
             </div>
             <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-5">
-              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-500">จำนวนคำสั่งจอง</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-500">งานที่เสร็จสิ้น</p>
               <p className="mt-3 text-3xl font-bold text-emerald-900">
                 {Number(salesData.totalBookings || 0).toLocaleString('th-TH')}
               </p>
             </div>
             <div className="rounded-2xl border border-violet-200/70 bg-violet-50/70 p-5">
-              <p className="text-xs font-semibold uppercase tracking-widest text-violet-500">บริการที่มีคำสั่งจอง</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-violet-500">งานที่ถูกยกเลิก</p>
               <p className="mt-3 text-3xl font-bold text-violet-900">
-                {salesData.services.length.toLocaleString('th-TH')}
+                {Number(salesData.totalCancelledBookings || 0).toLocaleString('th-TH')}
+              </p>
+              <p className="mt-1 text-xs font-medium text-violet-500/80">
+                มูลค่าที่เสียไป {formatCurrency(salesData.totalCancelledRevenue)}
               </p>
             </div>
           </div>
@@ -749,6 +808,28 @@ export default function AdminDashboard() {
                         <h3 className="text-xl font-semibold text-indigo-600">ภาพรวมยอดขายบริการ</h3>
                         <p className="text-xs uppercase tracking-widest text-rose-500">จำนวนยอดขาย (บาท)</p>
                       </div>
+                      <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-medium text-slate-500">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{
+                              backgroundColor: chartPalette[0],
+                              backgroundImage: buildBarGradient(chartPalette[0])
+                            }}
+                          />
+                          <span>ยอดขายจากงานเสร็จสิ้น</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{
+                              backgroundColor: '#c4b5fd',
+                              backgroundImage: buildBarGradient('#c4b5fd')
+                            }}
+                          />
+                          <span>ยอดขายที่ถูกยกเลิก</span>
+                        </div>
+                      </div>
                       <div className="relative mt-4 grid grid-cols-[60px_minmax(0,1fr)] gap-4">
                         <div className="flex h-72 flex-col justify-between py-2 pr-3 text-right text-xs font-semibold text-slate-400">
                           {chartMeta.ticks
@@ -774,32 +855,46 @@ export default function AdminDashboard() {
                             <div className="absolute inset-y-0 left-0 w-px bg-slate-400" />
                           </div>
                           <div className="relative flex h-72 items-end justify-around px-6">
-                            {chartColumns.map((column) => (
-                              <div key={column.key} className="relative flex h-full w-28 items-end justify-center overflow-visible">
-                                <div
-                                  className="absolute left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow"
-                                  style={{ bottom: column.labelBottom }}
-                                >
-                                  {formatCurrency(column.revenue).replace('฿', '')}
+                            {chartGroups.map((group) => {
+                              const bars = [
+                                { ...group.completed, key: `${group.key}-completed`, label: 'งานสำเร็จ' },
+                                { ...group.cancelled, key: `${group.key}-cancelled`, label: 'งานยกเลิก' }
+                              ];
+
+                              return (
+                                <div key={group.key} className="flex h-full w-36 flex-col items-center justify-end">
+                                  <div className="flex h-full w-full items-end justify-center gap-3">
+                                    {bars.map((bar) => (
+                                      <div key={bar.key} className="relative flex h-full w-12 items-end justify-center">
+                                        <div
+                                          className="absolute left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow transition-opacity duration-200"
+                                          style={{ bottom: bar.labelBottom, opacity: chartMeta.axisMax > 0 ? 1 : 0.4 }}
+                                        >
+                                          {formatCurrency(bar.revenue).replace('฿', '')}
+                                        </div>
+                                        <div className="flex h-full w-full items-end justify-center">
+                                          <div
+                                            className="w-full rounded-t-[24px] border border-slate-900/10 shadow-[0_12px_24px_-12px_rgba(15,23,42,0.45)] transition-[height] duration-500"
+                                            style={{
+                                              height: bar.heightString,
+                                              backgroundColor: bar.color,
+                                              backgroundImage: bar.gradient
+                                            }}
+                                          />
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
-                                <div className="flex h-full w-16 items-end justify-center">
-                                  <div
-                                    className="w-full rounded-t-[28px] border border-slate-900/10 shadow-[0_12px_24px_-12px_rgba(15,23,42,0.45)] transition-[height] duration-500"
-                                    style={{
-                                      height: column.heightString,
-                                      backgroundColor: column.barColor,
-                                      backgroundImage: buildBarGradient(column.barColor)
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                           <div className="mt-8 flex items-start justify-around px-6">
-                            {chartColumns.map((column) => (
-                              <div key={`${column.key}-label`} className="w-28 text-center">
-                                <p className="break-words text-sm font-semibold leading-tight text-slate-700">{column.serviceName}</p>
-                                <p className="text-xs text-slate-400">{column.bookingsCount.toLocaleString('th-TH')} งาน</p>
+                            {chartGroups.map((group) => (
+                              <div key={`${group.key}-label`} className="w-36 text-center">
+                                <p className="break-words text-sm font-semibold leading-tight text-slate-700">{group.serviceName}</p>
+                                <p className="text-xs text-emerald-500">สำเร็จ {group.completed.bookings.toLocaleString('th-TH')} งาน</p>
+                                <p className="text-xs text-rose-500">ยกเลิก {group.cancelled.bookings.toLocaleString('th-TH')} งาน</p>
                               </div>
                             ))}
                           </div>
