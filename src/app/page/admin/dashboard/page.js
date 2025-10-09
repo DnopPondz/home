@@ -538,27 +538,27 @@ export default function AdminDashboard() {
           />
         )
       },
-      {
-        key: 'averageRating',
-        label: 'คะแนนรีวิวเฉลี่ย',
-        accent: 'from-amber-400 to-amber-500',
-        value: dashboardData.averageRating,
-        subtitle:
-          dashboardData.reviewCount > 0
-            ? `${dashboardData.reviewCount.toLocaleString('th-TH')} รีวิว`
-            : 'ยังไม่มีรีวิวจากลูกค้า',
-        loadingSubtitle: 'กำลังคำนวณคะแนน...',
-        formatValue: (value, isLoading) =>
-          isLoading ? '…' : Number(value || 0).toFixed(1),
-        icon: (
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M11.48 3.499a.562.562 0 011.04 0l1.18 3.63a.563.563 0 00.532.39h3.813a.563.563 0 01.332 1.017l-3.08 2.24a.563.563 0 00-.204.631l1.18 3.63a.563.563 0 01-.865.631l-3.08-2.24a.563.563 0 00-.66 0l-3.08 2.24a.563.563 0 01-.865-.631l1.18-3.63a.563.563 0 00-.204-.631l-3.08-2.24a.563.563 0 01.332-1.017h3.813a.563.563 0 00.532-.39l1.18-3.63z"
-          />
-        )
-      },
+      // {
+      //   key: 'averageRating',
+      //   label: 'คะแนนรีวิวเฉลี่ย',
+      //   accent: 'from-amber-400 to-amber-500',
+      //   value: dashboardData.averageRating,
+      //   subtitle:
+      //     dashboardData.reviewCount > 0
+      //       ? `${dashboardData.reviewCount.toLocaleString('th-TH')} รีวิว`
+      //       : 'ยังไม่มีรีวิวจากลูกค้า',
+      //   loadingSubtitle: 'กำลังคำนวณคะแนน...',
+      //   formatValue: (value, isLoading) =>
+      //     isLoading ? '…' : Number(value || 0).toFixed(1),
+      //   icon: (
+      //     <path
+      //       strokeLinecap="round"
+      //       strokeLinejoin="round"
+      //       strokeWidth={1.5}
+      //       d="M11.48 3.499a.562.562 0 011.04 0l1.18 3.63a.563.563 0 00.532.39h3.813a.563.563 0 01.332 1.017l-3.08 2.24a.563.563 0 00-.204.631l1.18 3.63a.563.563 0 01-.865.631l-3.08-2.24a.563.563 0 00-.66 0l-3.08 2.24a.563.563 0 01-.865-.631l1.18-3.63a.563.563 0 00-.204-.631l-3.08-2.24a.563.563 0 01.332-1.017h3.813a.563.563 0 00.532-.39l1.18-3.63z"
+      //     />
+      //   )
+      // },
       {
         key: 'totalUsers',
         label: 'ผู้ใช้ทั้งหมด',
