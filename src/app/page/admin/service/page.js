@@ -461,7 +461,7 @@ const Service = () => {
           <div className="flex space-x-4">
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <User className="w-4 h-4" />
-              <span>ช่าง</span>
+              <span>พนักงาน</span>
               <span className="text-blue-600">{jobs.length} งาน</span>
             </div>
             <button onClick={fetchBookings} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">

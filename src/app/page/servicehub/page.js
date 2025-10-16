@@ -1168,10 +1168,10 @@ const ServiceHub = () => {
         <div className="relative max-w-7xl mx-auto text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">บริการของเรา</h1>
           <p className="text-lg md:text-xl mb-2">
-            ซ่อมเครื่องใช้ไฟฟ้า ซ่อมแอร์ ทำความสะอาดบ้าน และอื่น ๆ อีกมากมาย
+          ทำความสะอาด
           </p>
           <p className="text-base md:text-lg opacity-90">
-            โดยพนักงานแม่บ้าน และช่างมืออาชีพ
+            โดยพนักงานแม่บ้านมืออาชีพ
           </p>
         </div>
       </div>

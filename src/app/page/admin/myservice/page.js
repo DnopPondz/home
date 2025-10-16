@@ -442,7 +442,7 @@ const ServiceManagement = () => {
                     onChange={handleInputChange}
                     disabled={modalMode === "view"}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                    placeholder="เช่น แอร์, ตู้เย็น, เครื่องซักผ้า"
+                    placeholder="ระบุประเภทของบริการ"
                   />
                 </div>
 
@@ -458,7 +458,7 @@ const ServiceManagement = () => {
                     onChange={handleInputChange}
                     disabled={modalMode === "view"}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                    placeholder="เช่น ติดตั้งแอร์, ซ่อมแอร์"
+                    placeholder="ระบุชื่อของบริการ"
                   />
                 </div>
 
@@ -503,7 +503,7 @@ const ServiceManagement = () => {
                     <div key={index} className="flex space-x-2 mb-3">
                       <input
                         type="text"
-                        placeholder="ตัวเลือก เช่น 9,000-18,000 BTU"
+                        placeholder="ระบุรายละเอียด"
                         value={option.option ?? ""} // แก้ตรงนี้
                         onChange={(e) =>
                           handlePriceOptionChange(

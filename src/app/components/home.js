@@ -35,9 +35,9 @@ const HomePage = () => {
             text-sm sm:text-lg md:text-xl lg:text-xl xl:text-2xl 2xl:text-3xl
             max-w-[260px] sm:max-w-[300px] md:max-w-[350px] lg:max-w-[400px] xl:max-w-[500px] 2xl:max-w-[600px]"
           >
-            ซ่อมเครื่องใช้ไฟฟ้า ซ่อมแอร์ <br />
+          <br />
             ทำความสะอาดบ้าน <br />
-            โดยพนักงานแม่บ้าน และช่างมืออาชีพ
+            โดยพนักงานแม่บ้านมืออาชีพ
           </p>
 
           {/* CTA Button */}
@@ -131,7 +131,7 @@ const HomePage = () => {
                   width={16}
                   height={16}
                 />
-                ค่าบริการประมาณ 800 ฿
+                ค่าบริการเริ่มต้น 400 ฿
               </p>
               <Link href="/page/servicehub" className="mt-auto">
                 <p className="mt-2 text-xl text-blue-500 underline cursor-pointer hover:text-blue-300">
@@ -161,7 +161,7 @@ const HomePage = () => {
                   width={16}
                   height={16}
                 />
-                ค่าบริการประมาณ 1,500 ฿
+                ค่าบริการเริ่มต้น 400 ฿
               </p>
               <Link href="/page/servicehub" className="mt-auto">
                 <p className="mt-2 text-xl text-blue-500 underline cursor-pointer hover:text-blue-300">
@@ -191,7 +191,7 @@ const HomePage = () => {
                   width={16}
                   height={16}
                 />
-                ค่าบริการประมาณ 3,000 ฿
+                ค่าบริการเริ่มต้น 400 ฿
               </p>
               <Link href="/page/servicehub" className="mt-auto">
                 <p className="mt-2 text-xl text-blue-500 underline cursor-pointer hover:text-blue-300">
@@ -221,7 +221,7 @@ const HomePage = () => {
                   width={16}
                   height={16}
                 />
-                ค่าบริการประมาณ 800 ฿
+                ค่าบริการเริ่มต้น 400 ฿
               </p>
               <Link href="/page/servicehub" className="mt-auto">
                 <p className="mt-2 text-xl text-blue-500 underline cursor-pointer hover:text-blue-300">

@@ -575,7 +575,7 @@ export default function AdminDashboard() {
       },
       {
         key: 'totalWorkers',
-        label: 'พนักงานภาคสนามทั้งหมด',
+        label: 'พนักงานทั้งหมด',
         accent: 'from-amber-500 to-orange-500',
         value: dashboardData.totalWorkers,
         icon: (
@@ -940,7 +940,7 @@ export default function AdminDashboard() {
                 <span className="font-semibold">{dashboardData.totalBookings.toLocaleString('th-TH')}</span>
               </div>
               <div className="flex items-center justify-between rounded-2xl bg-white/10 px-4 py-3">
-                <span className="font-medium">ทีมช่าง</span>
+                <span className="font-medium">พนักงาน</span>
                 <span className="font-semibold">{dashboardData.totalWorkers.toLocaleString('th-TH')}</span>
               </div>
               <div className="flex items-center justify-between rounded-2xl bg-white/10 px-4 py-3">
@@ -954,7 +954,7 @@ export default function AdminDashboard() {
         <section className="rounded-3xl border border-slate-100 bg-white/80 p-6 lg:p-8 shadow-lg shadow-slate-200/70">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-xl font-semibold text-slate-900">ภาพรวมงานของพนักงานภาคสนาม</h3>
+              <h3 className="text-xl font-semibold text-slate-900">ภาพรวมงานของพนักงาน</h3>
               <p className="mt-1 text-sm text-slate-500">
                 ตรวจสอบจำนวนงานที่ได้รับมอบหมาย พร้อมสถานะการทำงานของแต่ละพนักงานแบบเรียลไทม์
               </p>

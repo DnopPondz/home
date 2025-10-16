@@ -23,7 +23,7 @@ const FooterUnLoginPage = () => {
           <div className="w-full md:w-1/2 lg:w-3/5 p-5 md:p-8 lg:p-12 xl:p-16 flex flex-col justify-center">
             <div className="flex flex-col gap-4 md:gap-6 lg:gap-8">
               <h1 className="text-xl md:text-2xl lg:text-3xl xl:text-4xl font-medium leading-tight">
-                มาร่วมเป็นพนักงานซ่อม <br />
+                มาร่วมเป็นพนักงาน <br />
                 กับ HomeServices
               </h1>
               <p className="text-sm md:text-base lg:text-lg text-blue-100 leading-relaxed">
@@ -56,7 +56,7 @@ const FooterUnLoginPage = () => {
                   บริษัท โฮมเซอร์วิสเซส จำกัด
                 </h2>
                 <p className="text-sm md:text-sm lg:text-sm text-gray-700 leading-relaxed">
-                  126/57
+                  126/57 ต.หนองป่าครั่ง อ.เมืองเชียงใหม่ จ.เชียงใหม่
                   50000
                 </p>
               </div>
@@ -72,7 +72,7 @@ const FooterUnLoginPage = () => {
                       className="w-4 md:w-5 lg:w-6 flex-shrink-0"
                     />
                     <span className="text-sm md:text-sm lg:text-sm">
-                      080-540-6357
+                      097-287-7748
                     </span>
                   </div>
                   <div className="flex justify-start items-center gap-3 md:gap-4">
